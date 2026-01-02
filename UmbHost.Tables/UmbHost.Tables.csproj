@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    
+    <!-- Package Info -->
+    <PackageId>UmbHost.Tables</PackageId>
+    <Version>17.0.1</Version>
+    <Authors>UmbHost</Authors>
+    <Company>UmbHost</Company>
+    <Description>A table property editor for Umbraco 17 that allows content editors to create and manage tabular data with support for header rows/columns and rich text editing.</Description>
+    <PackageProjectUrl>https://github.com/UmbHost/UmbHost.Tables</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/UmbHost/UmbHost.Tables</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>umbraco;umbraco-cms;umbraco-package;table;tables;table-editor;property-editor;umbraco-v17;umbraco-marketplace</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>table.png</PackageIcon>
+    
+    <!-- Enable static web assets -->
+    <StaticWebAssetBasePath>App_Plugins/UmbHost.Tables</StaticWebAssetBasePath>
+    <Title>UmbHost.Tables</Title>
+    <Copyright>Copyright © 2026 UmbHost Limited.</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\table.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Umbraco.Cms.Core" Version="17.0.2" />
+  </ItemGroup>
+
+</Project>

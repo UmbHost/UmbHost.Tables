@@ -1,0 +1,17 @@
+{
+  "name": "umbhost-tables-client",
+  "version": "17.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "watch": "vite build --watch",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@umbraco-cms/backoffice": "^17.0.0",
+    "lit": "^3.2.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.0"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "id": "UmbHost.Tables",
+  "name": "UmbHost Tables",
+  "version": "17.0.0",
+  "extensions": [
+    {
+      "type": "propertyEditorUi",
+      "alias": "UmbHost.Tables.PropertyEditorUi",
+      "name": "UmbHost Tables Property Editor UI",
+      "element": "/App_Plugins/UmbHost.Tables/umbhost-tables.js",
+      "elementName": "umbhost-table-property-editor",
+      "meta": {
+        "label": "Table",
+        "icon": "icon-grid",
+        "group": "rich content",
+        "propertyEditorSchemaAlias": "UmbHost.Tables",
+        "settings": {
+          "properties": [
+            {
+              "alias": "showUseFirstRowAsHeader",
+              "label": "Show 'Use First Row as Header' option",
+              "description": "Allow editors to toggle whether the first row is a header row",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Toggle"
+            },
+            {
+              "alias": "showUseFirstColumnAsHeader",
+              "label": "Show 'Use First Column as Header' option",
+              "description": "Allow editors to toggle whether the first column is a header column",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Toggle"
+            },
+            {
+              "alias": "defaultRows",
+              "label": "Default Rows",
+              "description": "Number of rows for a new table (default: 3)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
+            },
+            {
+              "alias": "defaultColumns",
+              "label": "Default Columns",
+              "description": "Number of columns for a new table (default: 3)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
+            },
+            {
+              "alias": "minRows",
+              "label": "Minimum Rows",
+              "description": "Minimum number of rows allowed (default: 1)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
+            },
+            {
+              "alias": "maxRows",
+              "label": "Maximum Rows",
+              "description": "Maximum number of rows allowed (0 = unlimited)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
+            },
+            {
+              "alias": "minColumns",
+              "label": "Minimum Columns",
+              "description": "Minimum number of columns allowed (default: 1)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
+            },
+            {
+              "alias": "maxColumns",
+              "label": "Maximum Columns",
+              "description": "Maximum number of columns allowed (0 = unlimited)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
+            },
+            {
+              "alias": "enableRichText",
+              "label": "Enable Rich Text",
+              "description": "Allow rich text editing within cells",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Toggle"
+            }
+          ],
+          "defaultData": [
+            { "alias": "showUseFirstRowAsHeader", "value": true },
+            { "alias": "showUseFirstColumnAsHeader", "value": true },
+            { "alias": "defaultRows", "value": 3 },
+            { "alias": "defaultColumns", "value": 3 },
+            { "alias": "minRows", "value": 1 },
+            { "alias": "maxRows", "value": 0 },
+            { "alias": "minColumns", "value": 1 },
+            { "alias": "maxColumns", "value": 0 },
+            { "alias": "enableRichText", "value": false }
+          ]
+        }
+      }
+    }
+  ]
+}
