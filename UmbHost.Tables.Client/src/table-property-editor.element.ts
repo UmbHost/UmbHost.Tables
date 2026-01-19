@@ -1126,6 +1126,9 @@ private _toggleLinkClass() {
     .corner-cell {
         background: var(--uui-color-surface-alt, #f3f3f5);
         border: none;
+        width: 30px;
+        max-width: 30px;
+        min-width: 30px;
     }
 
     .row-drag-handle, .col-drag-handle { 
