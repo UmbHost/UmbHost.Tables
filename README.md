@@ -175,7 +175,7 @@ When creating a Data Type, the following options are available:
 Clone the repository and build the client assets:
 
 ```bash
-cd src/UmbHost.Tables.Client
+cd UmbHost.Tables.Client/
 npm install
 npm run build
 ```
@@ -191,7 +191,7 @@ dotnet build
 During development, you can watch for client-side changes:
 
 ```bash
-cd src/UmbHost.Tables.Client
+cd UmbHost.Tables.Client/
 npm run watch
 ```
 
