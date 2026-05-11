@@ -198,7 +198,7 @@ npm run watch
 ### Creating a NuGet Package
 
 ```bash
-dotnet pack src/UmbHost.Tables/UmbHost.Tables.csproj -c Release
+dotnet pack UmbHost.Tables/UmbHost.Tables.csproj -c Release
 ```
 
 ## Migrating from Limbo.Umbraco.Tables
