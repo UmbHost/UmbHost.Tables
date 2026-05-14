@@ -1,7 +1,7 @@
 import { LitElement as A, nothing as p, html as h, ifDefined as E, css as z, property as y, state as m, customElement as H, query as K } from "@umbraco-cms/backoffice/external/lit";
 import { UmbElementMixin as V } from "@umbraco-cms/backoffice/element-api";
 import { UmbPropertyEditorConfigCollection as Y } from "@umbraco-cms/backoffice/property-editor";
-import { UmbContextToken as W } from "@umbraco-cms/backoffice/context-api";
+import { UmbContextToken as N } from "@umbraco-cms/backoffice/context-api";
 function I(e = !1) {
   return {
     value: "",
@@ -10,7 +10,7 @@ function I(e = !1) {
     rowspan: 1
   };
 }
-function j(e, t = !1) {
+function W(e, t = !1) {
   return {
     cells: Array.from({ length: e }, () => I(t))
   };
@@ -31,10 +31,10 @@ function S(e = 3, t = 3, a = !1, l = !1) {
     useFirstColumnAsHeader: l
   };
 }
-var J = Object.defineProperty, N = Object.getOwnPropertyDescriptor, f = (e, t, a, l) => {
-  for (var o = l > 1 ? void 0 : l ? N(t, a) : t, i = e.length - 1, s; i >= 0; i--)
+var j = Object.defineProperty, J = Object.getOwnPropertyDescriptor, f = (e, t, a, l) => {
+  for (var o = l > 1 ? void 0 : l ? J(t, a) : t, i = e.length - 1, s; i >= 0; i--)
     (s = e[i]) && (o = (l ? s(t, a, o) : s(o)) || o);
-  return l && o && J(t, a, o), o;
+  return l && o && j(t, a, o), o;
 };
 function b(e, t, a) {
   if (!e) return a;
@@ -47,7 +47,10 @@ let g = class extends V(A) {
       this._contextMenu && (this._contextMenu = null);
     }, this._handleOutsideClick = (e) => {
       if (!this._editingCell) return;
-      e.composedPath().some((l) => l === this) || this._closeRteEditor();
+      const t = e.composedPath();
+      t.some((a) => a === this) || t.some(
+        (a) => a instanceof Element && a.tagName === "UUI-POPOVER-CONTAINER" || a instanceof HTMLDialogElement
+      ) || this._closeRteEditor();
     }, this._handleDragEnd = () => {
       this._draggedRowIndex = null, this._draggedColIndex = null, this._isDragging = !1;
     };
@@ -124,7 +127,7 @@ let g = class extends V(A) {
     const t = this._getMaxRows();
     if (t > 0 && this._tableData.rows.length >= t) return;
     const a = ((o = this._tableData.rows[0]) == null ? void 0 : o.cells.length) ?? this._getDefaultColumns(), l = [...this._tableData.rows];
-    l.splice(e, 0, j(a)), this._tableData = { ...this._tableData, rows: l }, this._updateCellTypes(), this._updateValue();
+    l.splice(e, 0, W(a)), this._tableData = { ...this._tableData, rows: l }, this._updateCellTypes(), this._updateValue();
   }
   _insertColumnAt(e) {
     var l;
@@ -694,14 +697,14 @@ f([
 g = f([
   H("umbhost-table-property-editor")
 ], g);
-var G = Object.defineProperty, Q = Object.getOwnPropertyDescriptor, L = (e) => {
+var G = Object.defineProperty, Q = Object.getOwnPropertyDescriptor, U = (e) => {
   throw TypeError(e);
 }, w = (e, t, a, l) => {
   for (var o = l > 1 ? void 0 : l ? Q(t, a) : t, i = e.length - 1, s; i >= 0; i--)
     (s = e[i]) && (o = (l ? s(t, a, o) : s(o)) || o);
   return l && o && G(t, a, o), o;
-}, U = (e, t, a) => t.has(e) || L("Cannot " + a), P = (e, t, a) => (U(e, t, "read from private field"), a ? a.call(e) : t.get(e)), q = (e, t, a) => t.has(e) ? L("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, a), X = (e, t, a) => (U(e, t, "access private method"), a), T, M, k;
-const Z = new W("UmbTiptapRteContext");
+}, L = (e, t, a) => t.has(e) || U("Cannot " + a), P = (e, t, a) => (L(e, t, "read from private field"), a ? a.call(e) : t.get(e)), q = (e, t, a) => t.has(e) ? U("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, a), X = (e, t, a) => (L(e, t, "access private method"), a), T, M, k;
+const Z = new N("UmbTiptapRteContext");
 let ee = 0, B = class extends V(A) {
   constructor() {
     super(...arguments), q(this, T);

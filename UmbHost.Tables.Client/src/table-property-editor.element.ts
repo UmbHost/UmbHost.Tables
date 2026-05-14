@@ -82,8 +82,14 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
   private _handleOutsideClick = (e: MouseEvent) => {
     if (!this._editingCell) return;
     const path = e.composedPath();
-    const isInside = path.some(t => t === this);
-    if (!isInside) this._closeRteEditor();
+    if (path.some(t => t === this)) return;
+    // The toolbar uses a uui-popover-container (top layer) and the source-code modal uses
+    // a native <dialog> via showModal() — both cause 'this' to be absent from composedPath.
+    if (path.some(t =>
+      (t instanceof Element && (t as Element).tagName === 'UUI-POPOVER-CONTAINER') ||
+      t instanceof HTMLDialogElement
+    )) return;
+    this._closeRteEditor();
   };
 
   private _parseValue() {
