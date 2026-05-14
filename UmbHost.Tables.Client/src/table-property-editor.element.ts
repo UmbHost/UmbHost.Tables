@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from '@umbraco-cms/backoffice/external/lit';
+import { LitElement, html, css, nothing, ifDefined } from '@umbraco-cms/backoffice/external/lit';
 import { customElement, property, state } from '@umbraco-cms/backoffice/external/lit';
 import type { UmbPropertyEditorUiElement, UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
 import { UmbElementMixin } from '@umbraco-cms/backoffice/element-api';
@@ -22,22 +22,36 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
   @property({ type: Boolean, attribute: 'readonly' }) public readonly: boolean = false;
 
   @state() private _tableData: TableData | null = null;
+  private _parsedValue: string | TableData = '';
+
+  // Roving tabindex — which cell holds tabindex="0". Defaults to first cell so Tab can enter the table.
+  @state() private _activeCell: { row: number; col: number } = { row: 0, col: 0 };
+
+  // RTE only — which cell has TipTap loaded and active.
   @state() private _editingCell: { row: number; col: number } | null = null;
+  @state() private _rteReady = false;
 
   @state() private _draggedRowIndex: number | null = null;
   @state() private _draggedColIndex: number | null = null;
+  @state() private _isDragging = false;
   @state() private _contextMenu: { x: number; y: number; row: number; col: number } | null = null;
 
-  // Config accessors
-  private _getDefaultRows()         { return getConfigValue(this.config, 'defaultRows', 3); }
-  private _getDefaultColumns()      { return getConfigValue(this.config, 'defaultColumns', 3); }
-  private _getMinRows()             { return getConfigValue(this.config, 'minRows', 1); }
-  private _getMaxRows()             { return getConfigValue(this.config, 'maxRows', 0); }
-  private _getMinColumns()          { return getConfigValue(this.config, 'minColumns', 1); }
-  private _getMaxColumns()          { return getConfigValue(this.config, 'maxColumns', 0); }
-  private _getShowFirstRowHeader()  { return getConfigValue(this.config, 'showUseFirstRowAsHeader', true); }
-  private _getShowFirstColHeader()  { return getConfigValue(this.config, 'showUseFirstColumnAsHeader', true); }
-  private _getEnableRichText()      { return getConfigValue(this.config, 'enableRichText', true); }
+  // Set true while returning focus to <td> after Escape, to suppress auto-activating TipTap.
+  private _escaping = false;
+  // Viewport coords of the last mousedown on an RTE cell — passed to TipTap so it can
+  // restore the cursor to the clicked position instead of defaulting to the document start.
+  private _pendingClickX = 0;
+  private _pendingClickY = 0;
+
+  private _getDefaultRows() { return getConfigValue(this.config, 'defaultRows', 3); }
+  private _getDefaultColumns() { return getConfigValue(this.config, 'defaultColumns', 3); }
+  private _getMinRows() { return getConfigValue(this.config, 'minRows', 1); }
+  private _getMaxRows() { return getConfigValue(this.config, 'maxRows', 0); }
+  private _getMinColumns() { return getConfigValue(this.config, 'minColumns', 1); }
+  private _getMaxColumns() { return getConfigValue(this.config, 'maxColumns', 0); }
+  private _getShowFirstRowHeader() { return getConfigValue(this.config, 'showUseFirstRowAsHeader', true); }
+  private _getShowFirstColHeader() { return getConfigValue(this.config, 'showUseFirstColumnAsHeader', true); }
+  private _getEnableRichText() { return getConfigValue(this.config, 'enableRichText', true); }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -54,27 +68,26 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     window.removeEventListener('mousedown', this._handleOutsideClick);
   }
 
-  private _closeContextMenu = () => {
-    if (this._contextMenu) this._contextMenu = null;
-  };
+  private _closeContextMenu = () => { if (this._contextMenu) this._contextMenu = null; };
 
   private _closeRteEditor() {
+    this._rteReady = false;
     this._editingCell = null;
+  }
+
+  private _handleRteEditorReady() {
+    this._rteReady = true;
   }
 
   private _handleOutsideClick = (e: MouseEvent) => {
     if (!this._editingCell) return;
     const path = e.composedPath();
-    const isInside = path.some(t => t instanceof HTMLElement && t.classList.contains('table-editor'));
-    if (!isInside) {
-      if (!this._getEnableRichText()) {
-        this._saveCellValue(this._editingCell.row, this._editingCell.col);
-      }
-      this._editingCell = null;
-    }
+    const isInside = path.some(t => t === this);
+    if (!isInside) this._closeRteEditor();
   };
 
   private _parseValue() {
+    this._parsedValue = this.value;
     if (!this.value) {
       this._tableData = createEmptyTable(this._getDefaultRows(), this._getDefaultColumns());
       return;
@@ -93,6 +106,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
   private _updateValue() {
     if (!this._tableData) return;
     const newValue = JSON.stringify(this._tableData);
+    this._parsedValue = newValue;
     this.value = newValue;
     this.dispatchEvent(new CustomEvent('property-value-change', { detail: { value: newValue }, bubbles: true, composed: true }));
   }
@@ -113,7 +127,6 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     if (!this._tableData) return;
     const maxRows = this._getMaxRows();
     if (maxRows > 0 && this._tableData.rows.length >= maxRows) return;
-
     const colCount = this._tableData.rows[0]?.cells.length ?? this._getDefaultColumns();
     const newRows = [...this._tableData.rows];
     newRows.splice(index, 0, createEmptyRow(colCount));
@@ -126,11 +139,9 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     if (!this._tableData) return;
     const maxCols = this._getMaxColumns();
     if (maxCols > 0 && (this._tableData.rows[0]?.cells.length ?? 0) >= maxCols) return;
-
-    const newRows = this._tableData.rows.map((row, ri) => {
-      const isHeader = (this._tableData!.useFirstRowAsHeader && ri === 0) || (this._tableData!.useFirstColumnAsHeader && index === 0);
+    const newRows = this._tableData.rows.map(row => {
       const newCells = [...row.cells];
-      newCells.splice(index, 0, createEmptyCell(isHeader));
+      newCells.splice(index, 0, createEmptyCell(false));
       return { ...row, cells: newCells };
     });
     this._tableData = { ...this._tableData, rows: newRows };
@@ -144,6 +155,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     const newRows = [...this._tableData.rows];
     newRows.splice(index, 1);
     this._tableData = { ...this._tableData, rows: newRows };
+    this._clampActiveCell();
     this._updateCellTypes();
     this._updateValue();
   }
@@ -157,8 +169,19 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       return { ...row, cells: newCells };
     });
     this._tableData = { ...this._tableData, rows: newRows };
+    this._clampActiveCell();
     this._updateCellTypes();
     this._updateValue();
+  }
+
+  private _clampActiveCell() {
+    if (!this._tableData) return;
+    const rowCount = this._tableData.rows.length;
+    const colCount = this._tableData.rows[0]?.cells.length ?? 0;
+    this._activeCell = {
+      row: Math.max(0, Math.min(this._activeCell.row, rowCount - 1)),
+      col: Math.max(0, Math.min(this._activeCell.col, colCount - 1)),
+    };
   }
 
   private _updateCellTypes() {
@@ -173,7 +196,6 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       }))
     }));
     this._tableData = { ...this._tableData, rows: newRows };
-    this._updateValue();
   }
 
   private _updateCellValue(row: number, col: number, value: string) {
@@ -190,12 +212,14 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     if (!this._tableData || this.readonly) return;
     this._tableData = { ...this._tableData, useFirstRowAsHeader: !this._tableData.useFirstRowAsHeader };
     this._updateCellTypes();
+    this._updateValue();
   }
 
   private _toggleFirstColumnHeader() {
     if (!this._tableData || this.readonly) return;
     this._tableData = { ...this._tableData, useFirstColumnAsHeader: !this._tableData.useFirstColumnAsHeader };
     this._updateCellTypes();
+    this._updateValue();
   }
 
   // --- Context Menu ---
@@ -224,10 +248,14 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
   private _handleRowDragStart(e: DragEvent, index: number) {
     if (this.readonly) return;
+    // Stop propagation so the block list editor's UmbSorterController (which listens for
+    // dragstart on its container) does not interpret this as a block drag.
+    e.stopPropagation();
     this._draggedRowIndex = index;
+    this._isDragging = true;
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', `row:${index}`);
+      e.dataTransfer.setData('application/x-umbhost-table-drag', `row:${index}`);
       const row = (e.target as HTMLElement).closest('tr');
       if (row) e.dataTransfer.setDragImage(row, 0, 0);
     }
@@ -238,6 +266,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     e.preventDefault();
     if (this._draggedRowIndex !== targetIndex) this._moveRow(this._draggedRowIndex, targetIndex);
     this._draggedRowIndex = null;
+    this._isDragging = false;
   }
 
   private _moveRow(from: number, to: number) {
@@ -254,10 +283,14 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
   private _handleColDragStart(e: DragEvent, index: number) {
     if (this.readonly) return;
+    // Stop propagation so the block list editor's UmbSorterController does not
+    // interpret this as a block drag.
+    e.stopPropagation();
     this._draggedColIndex = index;
+    this._isDragging = true;
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', `col:${index}`);
+      e.dataTransfer.setData('application/x-umbhost-table-drag', `col:${index}`);
     }
   }
 
@@ -266,7 +299,14 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     e.preventDefault();
     if (this._draggedColIndex !== targetIndex) this._moveColumn(this._draggedColIndex, targetIndex);
     this._draggedColIndex = null;
+    this._isDragging = false;
   }
+
+  private _handleDragEnd = () => {
+    this._draggedRowIndex = null;
+    this._draggedColIndex = null;
+    this._isDragging = false;
+  };
 
   private _moveColumn(from: number, to: number) {
     if (!this._tableData) return;
@@ -287,83 +327,161 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
   }
 
-  // --- Cell Editing ---
+  // --- Plain-text cell handlers (textarea) ---
 
-  private _handleCellClick(e: MouseEvent, row: number, col: number) {
-    if (this.readonly || e.button === 2) return;
-    if (this._editingCell?.row === row && this._editingCell?.col === col) return;
-
-    if (this._editingCell && !this._getEnableRichText()) {
-      this._saveCellValue(this._editingCell.row, this._editingCell.col);
-    }
-
-    this._editingCell = { row, col };
-
-    if (!this._getEnableRichText()) {
-      this.updateComplete.then(() => {
-        (this.shadowRoot?.querySelector(`[data-row="${row}"][data-col="${col}"] .cell-content`) as HTMLElement | null)?.focus();
-      });
-    }
+  private _handleTextareaFocus(row: number, col: number) {
+    this._activeCell = { row, col };
   }
 
-  private _handleCellBlur(row: number, col: number) {
-    requestAnimationFrame(() => {
-      if (this._editingCell?.row === row && this._editingCell?.col === col) {
-        this._saveCellValue(row, col);
-      }
-    });
+  private _handleTextareaBlur(e: FocusEvent, row: number, col: number) {
+    this._updateCellValue(row, col, (e.target as HTMLTextAreaElement).value);
   }
 
-  private _handleCellKeydown(e: KeyboardEvent, row: number, col: number) {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      this._closeRteEditor();
-      return;
-    }
+  private _handleTextareaInput(e: Event) {
+    const ta = e.target as HTMLTextAreaElement;
+    ta.style.height = 'auto';
+    const tdHeight = (ta.closest('td') as HTMLElement | null)?.clientHeight ?? 0;
+    ta.style.height = `${Math.min(Math.max(ta.scrollHeight, tdHeight), 240)}px`;
+  }
 
-    // Tab navigation only applies in plain-text mode; tiptap handles its own keyboard events
-    if (e.key !== 'Tab' || this._getEnableRichText()) return;
-    e.preventDefault();
-    this._saveCellValue(row, col);
-
+  private _handleTextareaKeydown(e: KeyboardEvent, row: number, col: number) {
+    if (e.key !== 'Tab') return;
     const rowCount = this._tableData?.rows.length ?? 0;
     const colCount = this._tableData?.rows[0]?.cells.length ?? 0;
     let nextRow = row;
     let nextCol = col + (e.shiftKey ? -1 : 1);
+    if (nextCol >= colCount) { nextCol = 0; nextRow++; }
+    else if (nextCol < 0)   { nextCol = colCount - 1; nextRow--; }
+    // At boundary let the browser's natural Tab exit the table.
+    if (nextRow < 0 || nextRow >= rowCount) return;
+    e.preventDefault();
+    this._activeCell = { row: nextRow, col: nextCol };
+    this.updateComplete.then(() => {
+      (this.shadowRoot?.querySelector(
+        `[data-row="${nextRow}"][data-col="${nextCol}"] .cell-textarea`
+      ) as HTMLTextAreaElement | null)?.focus();
+    });
+  }
 
-    if (nextCol >= colCount)   { nextCol = 0; nextRow++; }
-    else if (nextCol < 0)      { nextCol = colCount - 1; nextRow--; }
+  // --- RTE cell handlers (<td>/<th> level) ---
 
-    if (nextRow >= 0 && nextRow < rowCount) {
-      this._editingCell = { row: nextRow, col: nextCol };
+  private _handleRteCellFocus(row: number, col: number) {
+    this._activeCell = { row, col };
+    if (!this._escaping) {
+      const alreadyEditing = this._editingCell?.row === row && this._editingCell?.col === col;
+      if (!alreadyEditing) {
+        this._rteReady = false;
+        this._editingCell = { row, col };
+      }
+    }
+  }
+
+  private _handleRteCellKeydown(e: KeyboardEvent, row: number, col: number) {
+    const rowCount = this._tableData?.rows.length ?? 0;
+    const colCount = this._tableData?.rows[0]?.cells.length ?? 0;
+    const isEditing = this._editingCell?.row === row && this._editingCell?.col === col;
+
+    // Escape bubbles from TipTap through shadow DOM — always handle it.
+    if (e.key === 'Escape' && isEditing) {
+      e.preventDefault();
+      this._escaping = true;
+      this._closeRteEditor();
       this.updateComplete.then(() => {
-        (this.shadowRoot?.querySelector(`[data-row="${nextRow}"][data-col="${nextCol}"] .cell-content`) as HTMLElement | null)?.focus();
+        (this.shadowRoot?.querySelector(`[data-row="${row}"][data-col="${col}"]`) as HTMLElement | null)?.focus();
+        requestAnimationFrame(() => { this._escaping = false; });
+      });
+      return;
+    }
+
+    // Tab always navigates between cells, even while TipTap is active.
+    if (e.key === 'Tab') {
+      let nr = row, nc = col + (e.shiftKey ? -1 : 1);
+      if (nc >= colCount) { nc = 0; nr++; }
+      else if (nc < 0)   { nc = colCount - 1; nr--; }
+      if (nr < 0 || nr >= rowCount) return; // let Tab exit naturally
+      e.preventDefault();
+      if (isEditing) this._closeRteEditor(); // close without _escaping so next cell activates TipTap
+      this._activeCell = { row: nr, col: nc };
+      this.updateComplete.then(() => {
+        (this.shadowRoot?.querySelector(
+          `[data-row="${nr}"][data-col="${nc}"]`
+        ) as HTMLElement | null)?.focus();
+      });
+      return;
+    }
+
+    // While TipTap is active, let it handle all other keyboard events.
+    if (isEditing) return;
+
+    let nextRow = row, nextCol = col;
+    switch (e.key) {
+      case 'ArrowRight': e.preventDefault(); nextCol = Math.min(colCount - 1, col + 1); break;
+      case 'ArrowLeft':  e.preventDefault(); nextCol = Math.max(0, col - 1); break;
+      case 'ArrowDown':  e.preventDefault(); nextRow = Math.min(rowCount - 1, row + 1); break;
+      case 'ArrowUp':    e.preventDefault(); nextRow = Math.max(0, row - 1); break;
+      // Enter or Space as a fallback to manually activate TipTap if auto-focus failed.
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        this._handleRteCellFocus(row, col);
+        return;
+      default:
+        return;
+    }
+
+    if (nextRow !== row || nextCol !== col) {
+      this._activeCell = { row: nextRow, col: nextCol };
+      this.updateComplete.then(() => {
+        (this.shadowRoot?.querySelector(
+          `[data-row="${nextRow}"][data-col="${nextCol}"]`
+        ) as HTMLElement | null)?.focus();
       });
     }
   }
 
-  private _saveCellValue(row: number, col: number) {
-    if (row < 0 || col < 0 || this._getEnableRichText()) return;
-    const el = this.shadowRoot?.querySelector(`[data-row="${row}"][data-col="${col}"] .cell-content`) as HTMLElement | null;
-    if (el) this._updateCellValue(row, col, el.innerHTML);
-  }
-
-  // --- Sync ---
+  // --- DOM sync ---
 
   override updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
-    this._syncCellContents();
+    if (changedProperties.has('value') && this.value !== this._parsedValue) {
+      this._parseValue();
+    }
+    if (!this._getEnableRichText()) {
+      this._syncTextareaValues();
+      this._resizeTextareas();
+    }
   }
 
-  private _syncCellContents() {
+  // Set textarea values from _tableData, skipping the currently focused textarea so
+  // in-progress typing is never overwritten.
+  private _syncTextareaValues() {
     if (!this._tableData) return;
+    const activeEl = this.shadowRoot?.activeElement;
     this._tableData.rows.forEach((row, ri) => {
       row.cells.forEach((cell, ci) => {
-        if (this._editingCell?.row === ri && this._editingCell?.col === ci) return;
-        const el = this.shadowRoot?.querySelector(`[data-row="${ri}"][data-col="${ci}"] .cell-content`) as HTMLElement | null;
-        if (el && el.innerHTML !== (cell.value || '')) el.innerHTML = cell.value || '';
+        const ta = this.shadowRoot?.querySelector(
+          `[data-row="${ri}"][data-col="${ci}"] .cell-textarea`
+        ) as HTMLTextAreaElement | null;
+        if (!ta || ta === activeEl) return;
+        const text = this._htmlToText(cell.value || '');
+        if (ta.value !== text) ta.value = text;
       });
     });
+  }
+
+  private _resizeTextareas() {
+    this.shadowRoot?.querySelectorAll<HTMLTextAreaElement>('.cell-textarea').forEach(ta => {
+      ta.style.height = 'auto';
+      const tdHeight = (ta.closest('td') as HTMLElement | null)?.clientHeight ?? 0;
+      ta.style.height = `${Math.min(Math.max(ta.scrollHeight, tdHeight), 240)}px`;
+    });
+  }
+
+  private _htmlToText(html: string): string {
+    if (!html) return '';
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.innerText ?? div.textContent ?? '';
   }
 
   // --- Render ---
@@ -394,7 +512,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     const useRte = this._getEnableRichText();
 
     return html`
-      <div class="table-editor">
+      <div class="table-editor ${this._isDragging ? 'is-dragging' : ''}">
         ${this._renderContextMenu()}
 
         <div class="toolbar">
@@ -406,30 +524,28 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
           </div>
           <div class="toolbar-right">
             ${this._getShowFirstRowHeader() ? html`
-              <uui-toggle label="First row is header"
-                          ?checked=${this._tableData.useFirstRowAsHeader}
+              <uui-toggle ?checked=${this._tableData.useFirstRowAsHeader}
                           ?disabled=${this.readonly}
-                          @change=${this._toggleFirstRowHeader}>
-              </uui-toggle>
+                          @change=${this._toggleFirstRowHeader}>First row is header</uui-toggle>
             ` : nothing}
             ${this._getShowFirstColHeader() ? html`
-              <uui-toggle label="First column is header"
-                          ?checked=${this._tableData.useFirstColumnAsHeader}
+              <uui-toggle ?checked=${this._tableData.useFirstColumnAsHeader}
                           ?disabled=${this.readonly}
-                          @change=${this._toggleFirstColumnHeader}>
-              </uui-toggle>
+                          @change=${this._toggleFirstColumnHeader}>First column is header</uui-toggle>
             ` : nothing}
           </div>
         </div>
 
         <div class="table-container">
-          <table>
-            <tr class="col-handle-row">
+          <table role="grid" aria-label="Table editor">
+            <tr class="col-handle-row" aria-hidden="true">
               <td class="corner-cell"></td>
               ${colIndices.map(ci => html`
                 <td class="col-handle-cell ${this._draggedColIndex === ci ? 'dragging' : ''}"
                     draggable="${!this.readonly}"
+                    @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
                     @dragstart=${(e: DragEvent) => this._handleColDragStart(e, ci)}
+                    @dragend=${this._handleDragEnd}
                     @dragover=${this._handleDragOver}
                     @drop=${(e: DragEvent) => this._handleColDrop(e, ci)}
                     @contextmenu=${(e: MouseEvent) => this._handleContextMenu(e, 0, ci)}>
@@ -442,36 +558,86 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
               <tr class="${this._draggedRowIndex === ri ? 'dragging' : ''}"
                   @dragover=${this._handleDragOver}
                   @drop=${(e: DragEvent) => this._handleRowDrop(e, ri)}>
-                <td class="handle-cell"
+
+                <td class="handle-cell" aria-hidden="true"
                     draggable="${!this.readonly}"
+                    @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
                     @dragstart=${(e: DragEvent) => this._handleRowDragStart(e, ri)}
+                    @dragend=${this._handleDragEnd}
                     @contextmenu=${(e: MouseEvent) => this._handleContextMenu(e, ri, 0)}>
                   <div class="row-drag-handle" title="Drag to reorder row">≡</div>
                 </td>
 
                 ${row.cells.map((cell, ci) => {
-                  const isEditing = !this.readonly && this._editingCell?.row === ri && this._editingCell?.col === ci;
-                  const rteActive = isEditing && useRte;
+                  const isActive   = this._activeCell.row === ri && this._activeCell.col === ci;
+                  const rteEditing = useRte && this._editingCell?.row === ri && this._editingCell?.col === ci;
 
-                  return html`
-                    <td class="cell ${cell.type === 'Th' ? 'header-cell' : ''} ${isEditing ? 'editing' : ''}"
-                        data-row="${ri}"
-                        data-col="${ci}"
-                        @click=${(e: MouseEvent) => this._handleCellClick(e, ri, ci)}
+                  // Header cells become real <th> with scope for screen-reader column/row association.
+                  const isColHeader = this._tableData!.useFirstRowAsHeader && ri === 0;
+                  const isRowHeader = this._tableData!.useFirstColumnAsHeader && ci === 0;
+                  const isHeader = cell.type === 'Th';
+                  const scope: 'col' | 'row' | undefined = isColHeader ? 'col' : isRowHeader ? 'row' : undefined;
+
+                  const cellClass = `cell ${isHeader ? 'header-cell' : ''} ${rteEditing ? 'editing' : ''}`;
+
+                  // tabindex lives on the <td>/<th> in RTE mode, on the <textarea> in plain-text mode.
+                  // In RTE mode, the active cell that is NOT currently editing gets tabindex="0";
+                  // once TipTap is active, the cell drops to "-1" so Tab doesn't revisit it.
+                  const rteCellTabindex: number | undefined = useRte ? (isActive && !rteEditing ? 0 : -1) : undefined;
+
+                  const cellContent = useRte ? (rteEditing ? html`
+                    <div class="cell-rte-wrapper">
+                      ${!this._rteReady ? html`
+                        <div class="cell-content" .innerHTML=${cell.value || ''}></div>
+                      ` : nothing}
+                      <umbhost-table-cell-tiptap-editor
+                        class=${!this._rteReady ? 'rte-loading' : ''}
+                        .value=${cell.value ?? ''}
+                        .config=${this.config}
+                        .clickOrigin=${{ x: this._pendingClickX, y: this._pendingClickY }}
+                        @rte-value-change=${(e: CustomEvent) => this._updateCellValue(ri, ci, e.detail)}
+                        @rte-editor-ready=${() => this._handleRteEditorReady()}>
+                      </umbhost-table-cell-tiptap-editor>
+                    </div>
+                  ` : html`
+                    <div class="cell-content" .innerHTML=${cell.value || ''}></div>
+                  `) : html`
+                    <textarea
+                      class="cell-textarea"
+                      tabindex=${isActive ? '0' : '-1'}
+                      aria-label="Row ${ri + 1}, column ${ci + 1}"
+                      ?disabled=${this.readonly}
+                      rows="1"
+                      @focus=${() => this._handleTextareaFocus(ri, ci)}
+                      @blur=${(e: FocusEvent) => this._handleTextareaBlur(e, ri, ci)}
+                      @input=${this._handleTextareaInput}
+                      @keydown=${(e: KeyboardEvent) => this._handleTextareaKeydown(e, ri, ci)}
+                      @contextmenu=${(e: MouseEvent) => this._handleContextMenu(e, ri, ci)}>
+                    </textarea>
+                  `;
+
+                  // Shared cell element attributes — repeated for <th> and <td> since Lit
+                  // can't spread attributes across a conditional tag choice.
+                  return isHeader ? html`
+                    <th class=${cellClass}
+                        data-row="${ri}" data-col="${ci}"
+                        scope=${ifDefined(scope)}
+                        tabindex=${ifDefined(rteCellTabindex)}
+                        @mousedown=${useRte ? (e: MouseEvent) => { this._pendingClickX = e.clientX; this._pendingClickY = e.clientY; } : nothing}
+                        @focus=${useRte ? () => this._handleRteCellFocus(ri, ci) : nothing}
                         @contextmenu=${(e: MouseEvent) => this._handleContextMenu(e, ri, ci)}
-                        @keydown=${(e: KeyboardEvent) => this._handleCellKeydown(e, ri, ci)}>
-                      ${rteActive ? html`
-                        <umbhost-table-cell-tiptap-editor
-                          .value=${cell.value ?? ''}
-                          .config=${this.config}
-                          @rte-value-change=${(e: CustomEvent) => this._updateCellValue(ri, ci, e.detail)}>
-                        </umbhost-table-cell-tiptap-editor>
-                      ` : html`
-                        <div class="cell-content"
-                             contenteditable="${isEditing && !useRte ? 'true' : 'false'}"
-                             @blur=${isEditing && !useRte ? () => this._handleCellBlur(ri, ci) : nothing}>
-                        </div>
-                      `}
+                        @keydown=${useRte ? (e: KeyboardEvent) => this._handleRteCellKeydown(e, ri, ci) : nothing}>
+                      ${cellContent}
+                    </th>
+                  ` : html`
+                    <td class=${cellClass}
+                        data-row="${ri}" data-col="${ci}"
+                        tabindex=${ifDefined(rteCellTabindex)}
+                        @mousedown=${useRte ? (e: MouseEvent) => { this._pendingClickX = e.clientX; this._pendingClickY = e.clientY; } : nothing}
+                        @focus=${useRte ? () => this._handleRteCellFocus(ri, ci) : nothing}
+                        @contextmenu=${(e: MouseEvent) => this._handleContextMenu(e, ri, ci)}
+                        @keydown=${useRte ? (e: KeyboardEvent) => this._handleRteCellKeydown(e, ri, ci) : nothing}>
+                      ${cellContent}
                     </td>
                   `;
                 })}
@@ -504,7 +670,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     }
     .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 12px; }
 
-    .table-container { overflow-x: auto; }
+    .table-container { overflow-x: auto; overflow-y: hidden; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 
     .cell {
@@ -513,25 +679,52 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       vertical-align: top;
       min-width: 150px;
       background: var(--uui-color-surface, #fff);
+      font-weight: normal;
+      height: 1px; /* enables height:100% on children — table still expands to content */
     }
     .cell.header-cell { background: var(--uui-color-surface-alt, #f3f3f5); font-weight: 600; }
-    .cell.editing { outline: 2px solid var(--uui-color-focus, #3544b1); outline-offset: -2px; z-index: 5; position: relative; }
+    .cell.editing     { outline: 2px solid var(--uui-color-focus, #3544b1); outline-offset: -2px; z-index: 5; position: relative; }
+    .cell:focus-visible { outline: 2px solid var(--uui-color-focus, #3544b1); outline-offset: -2px; z-index: 5; position: relative; }
 
-    .cell-content {
-      min-height: 40px;
-      padding: 8px 12px;
-      outline: none;
+    .cell-content,
+    .cell-textarea {
+      min-height: 60px;
+      padding: calc(1rem + 1px);
+      box-sizing: border-box;
       display: block;
+      width: 100%;
       word-break: break-word;
     }
-    .cell-content:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
-    .cell-content[contenteditable="false"] { cursor: pointer; }
-    .cell-content a { color: var(--uui-color-interactive, #3544b1); text-decoration: underline; }
 
-    /* Inline RTE editor fills the cell; min-height keeps the row stable while loading */
-    umbhost-table-cell-tiptap-editor {
-      display: block;
-      min-height: 40px;
+    .cell-content {
+      outline: none;
+    }
+    .cell-content p:first-of-type { margin-top: 0; }
+    .cell-content a { color: var(--uui-color-interactive, #3544b1); text-decoration: underline; }
+    .cell:not(.editing) .cell-content a { pointer-events: none; }
+
+    .cell-textarea {
+      border: none;
+      outline: none;
+      resize: none;
+      overflow: hidden; /* height driven by JS auto-resize */
+      background: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      line-height: inherit;
+    }
+    .cell-textarea:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
+
+    .cell-rte-wrapper { position: relative; min-height: 60px; height: 100%; }
+
+    umbhost-table-cell-tiptap-editor { display: block; height: 100%; }
+
+    umbhost-table-cell-tiptap-editor.rte-loading {
+      visibility: hidden;
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
     }
 
     /* Drag handles */
@@ -544,7 +737,6 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       cursor: grab;
       transition: background-color 0.1s;
     }
-
     .col-handle-cell {
       height: 24px;
       background: var(--uui-color-surface-alt, #f3f3f5);
@@ -553,13 +745,11 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       vertical-align: middle;
       cursor: grab;
     }
-
     .corner-cell {
       background: var(--uui-color-surface-alt, #f3f3f5);
       border: none;
       width: 30px; min-width: 30px; max-width: 30px;
     }
-
     .row-drag-handle, .col-drag-handle {
       color: var(--uui-color-text-alt, #a1a1a1);
       font-weight: bold;
@@ -568,11 +758,16 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     .handle-cell:hover .row-drag-handle,
     .col-handle-cell:hover .col-drag-handle { color: var(--uui-color-text, #000); }
 
+    /* Disable pointer events on interactive cell content during drag so drag events reach <tr>. */
+    .is-dragging .cell-textarea,
+    .is-dragging .cell-content,
+    .is-dragging umbhost-table-cell-tiptap-editor { pointer-events: none; }
+
     .dragging { opacity: 0.5; }
     tr.dragging td { background: var(--uui-color-surface-emphasis, #f9f9fb); }
-
-    tr:not(.dragging):hover td.cell:not(.editing) { background-color: var(--uui-color-surface-emphasis, #f9f9fb); }
-    tr:not(.dragging):hover td.handle-cell         { background-color: var(--uui-color-surface-emphasis, #f9f9fb); }
+    tr:not(.dragging):hover td.cell:not(.editing),
+    tr:not(.dragging):hover th.cell:not(.editing) { background-color: var(--uui-color-surface-emphasis, #f9f9fb); }
+    tr:not(.dragging):hover td.handle-cell        { background-color: var(--uui-color-surface-emphasis, #f9f9fb); }
 
     /* Context menu */
     .context-menu {
@@ -587,7 +782,6 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       font-size: 14px;
       color: var(--uui-color-text, #000);
     }
-
     .menu-item {
       padding: 8px 16px;
       cursor: pointer;
@@ -598,7 +792,6 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     .menu-item:hover  { background: var(--uui-color-surface-emphasis, #f9f9fb); }
     .menu-item.danger { color: var(--uui-color-danger, #d42054); }
     .menu-item.danger:hover { background: var(--uui-color-danger, #d42054); color: #fff; }
-
     .menu-divider { height: 1px; background: var(--uui-color-border, #e9e9eb); margin: 4px 0; }
   `;
 }
