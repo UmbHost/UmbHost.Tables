@@ -2,6 +2,7 @@ import { LitElement as A, nothing as p, html as h, ifDefined as E, css as z, pro
 import { UmbElementMixin as V } from "@umbraco-cms/backoffice/element-api";
 import { UmbPropertyEditorConfigCollection as Y } from "@umbraco-cms/backoffice/property-editor";
 import { UmbContextToken as N } from "@umbraco-cms/backoffice/context-api";
+import "@umbraco-cms/backoffice/tiptap";
 function I(e = !1) {
   return {
     value: "",
@@ -555,13 +556,15 @@ g.styles = z`
 
     .cell-content,
     .cell-textarea {
-      min-height: 60px;
       padding: calc(1rem + 1px);
       box-sizing: border-box;
       display: block;
       width: 100%;
       word-break: break-word;
     }
+
+    .cell-content  { min-height: 69px; }
+    .cell-textarea { min-height: 60px; }
 
     .cell-content {
       outline: none;
@@ -583,7 +586,7 @@ g.styles = z`
     }
     .cell-textarea:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
 
-    .cell-rte-wrapper { position: relative; min-height: 60px; height: 100%; }
+    .cell-rte-wrapper { position: relative; min-height: 69px; height: 100%; }
 
     umbhost-table-cell-tiptap-editor { display: block; height: 100%; }
 
@@ -819,7 +822,7 @@ v.styles = z`
 
     umb-input-tiptap {
       --uui-input-border-color: transparent;
-      --umb-rte-min-height: 60px;
+      --umb-rte-min-height: 69px;
       display: block;
       height: 100%;
     }

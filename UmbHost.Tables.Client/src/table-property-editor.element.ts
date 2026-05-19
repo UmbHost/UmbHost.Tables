@@ -694,13 +694,15 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
     .cell-content,
     .cell-textarea {
-      min-height: 60px;
       padding: calc(1rem + 1px);
       box-sizing: border-box;
       display: block;
       width: 100%;
       word-break: break-word;
     }
+
+    .cell-content  { min-height: 69px; }
+    .cell-textarea { min-height: 60px; }
 
     .cell-content {
       outline: none;
@@ -722,7 +724,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     }
     .cell-textarea:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
 
-    .cell-rte-wrapper { position: relative; min-height: 60px; height: 100%; }
+    .cell-rte-wrapper { position: relative; min-height: 69px; height: 100%; }
 
     umbhost-table-cell-tiptap-editor { display: block; height: 100%; }
 

@@ -3,8 +3,10 @@ import { UmbElementMixin } from '@umbraco-cms/backoffice/element-api';
 import { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
 import { UmbContextToken } from '@umbraco-cms/backoffice/context-api';
 import type { UUIPopoverContainerElement } from '@umbraco-cms/backoffice/external/uui';
-import type { UmbInputTiptapElement, UmbTiptapRteContext } from '@umbraco-cms/backoffice/tiptap';
-import type { Editor } from '@umbraco-cms/backoffice/tiptap';
+// Side-effect import ensures umb-input-tiptap and umb-tiptap-toolbar are registered in the
+// custom elements registry even when no other TipTap RTE property editor exists on the page.
+import '@umbraco-cms/backoffice/tiptap';
+import type { UmbInputTiptapElement, UmbTiptapRteContext, Editor } from '@umbraco-cms/backoffice/tiptap';
 
 // The token is not publicly exported from @umbraco-cms/backoffice/tiptap, so we re-declare it
 // using the same contextAlias. The context system matches by string alias, not object identity.
@@ -141,7 +143,7 @@ export class UmbHostTableCellTiptapEditor extends UmbElementMixin(LitElement) {
 
     umb-input-tiptap {
       --uui-input-border-color: transparent;
-      --umb-rte-min-height: 60px;
+      --umb-rte-min-height: 69px;
       display: block;
       height: 100%;
     }
