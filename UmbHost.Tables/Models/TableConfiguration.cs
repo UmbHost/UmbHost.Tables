@@ -66,4 +66,34 @@ public class TableConfiguration
     /// </summary>
     [JsonPropertyName("enableCellMerging")]
     public bool EnableCellMerging { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the enabled Tiptap extension aliases for the cell editor.
+    /// </summary>
+    [JsonPropertyName("extensions")]
+    public IEnumerable<string>? Extensions { get; set; }
+
+    /// <summary>
+    /// Gets or sets the toolbar layout as a three-dimensional array of extension aliases (rows → groups → items).
+    /// </summary>
+    [JsonPropertyName("toolbar")]
+    public object? Toolbar { get; set; }
+
+    /// <summary>
+    /// Gets or sets the statusbar configuration.
+    /// </summary>
+    [JsonPropertyName("statusbar")]
+    public object? Statusbar { get; set; }
+
+    /// <summary>
+    /// Gets or sets the stylesheet paths applied inside the cell editor.
+    /// </summary>
+    [JsonPropertyName("stylesheets")]
+    public IEnumerable<string>? Stylesheets { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum image size in pixels for the cell editor.
+    /// </summary>
+    [JsonPropertyName("maxImageSize")]
+    public int MaxImageSize { get; set; } = 500;
 }

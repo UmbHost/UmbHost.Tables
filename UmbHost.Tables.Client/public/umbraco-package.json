@@ -2,7 +2,7 @@
   "$schema": "../../umbraco-package-schema.json",
   "id": "UmbHost.Tables",
   "name": "UmbHost Tables",
-  "version": "17.0.0",
+  "version": "17.0.3",
   "extensions": [
     {
       "type": "propertyEditorUi",
@@ -70,6 +70,36 @@
               "label": "Enable Rich Text",
               "description": "Allow rich text editing within cells",
               "propertyEditorUiAlias": "Umb.PropertyEditorUi.Toggle"
+            },
+            {
+              "alias": "extensions",
+              "label": "Rich Text Extensions",
+              "description": "Select which Tiptap extensions (capabilities) are available in the cell editor",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Tiptap.ExtensionsConfiguration"
+            },
+            {
+              "alias": "toolbar",
+              "label": "Rich Text Toolbar",
+              "description": "Design the toolbar — only buttons whose required extensions are enabled above will appear",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Tiptap.ToolbarConfiguration"
+            },
+            {
+              "alias": "statusbar",
+              "label": "Rich Text Status Bar",
+              "description": "Design the status bar items for the cell editor",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Tiptap.StatusbarConfiguration"
+            },
+            {
+              "alias": "stylesheets",
+              "label": "Rich Text Stylesheets",
+              "description": "Stylesheets applied inside the cell editor",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.StylesheetPicker"
+            },
+            {
+              "alias": "maxImageSize",
+              "label": "Rich Text Max Image Size (px)",
+              "description": "Maximum image size in pixels (default: 500)",
+              "propertyEditorUiAlias": "Umb.PropertyEditorUi.Integer"
             }
           ],
           "defaultData": [
@@ -81,7 +111,31 @@
             { "alias": "maxRows", "value": 0 },
             { "alias": "minColumns", "value": 1 },
             { "alias": "maxColumns", "value": 0 },
-            { "alias": "enableRichText", "value": false }
+            { "alias": "enableRichText", "value": false },
+            {
+              "alias": "extensions",
+              "value": [
+                "Umb.Tiptap.Bold",
+                "Umb.Tiptap.Italic",
+                "Umb.Tiptap.Underline",
+                "Umb.Tiptap.Strike",
+                "Umb.Tiptap.Subscript",
+                "Umb.Tiptap.Superscript",
+                "Umb.Tiptap.TextAlign",
+                "Umb.Tiptap.Link"
+              ]
+            },
+            {
+              "alias": "toolbar",
+              "value": [[
+                ["Umb.Tiptap.Toolbar.Bold", "Umb.Tiptap.Toolbar.Italic", "Umb.Tiptap.Toolbar.Underline", "Umb.Tiptap.Toolbar.Strike"],
+                ["Umb.Tiptap.Toolbar.Subscript", "Umb.Tiptap.Toolbar.Superscript"],
+                ["Umb.Tiptap.Toolbar.TextAlignLeft", "Umb.Tiptap.Toolbar.TextAlignCenter", "Umb.Tiptap.Toolbar.TextAlignRight"],
+                ["Umb.Tiptap.Toolbar.Link", "Umb.Tiptap.Toolbar.Unlink"]
+              ]]
+            },
+            { "alias": "statusbar", "value": [] },
+            { "alias": "maxImageSize", "value": 500 }
           ]
         }
       }

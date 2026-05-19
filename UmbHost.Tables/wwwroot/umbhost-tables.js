@@ -1,651 +1,513 @@
-import { LitElement as x, nothing as b, html as h, css as y, property as v, state as p, customElement as D } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as R } from "@umbraco-cms/backoffice/element-api";
-import { UMB_MODAL_MANAGER_CONTEXT as k } from "@umbraco-cms/backoffice/modal";
-import { UMB_LINK_PICKER_MODAL as $ } from "@umbraco-cms/backoffice/multi-url-picker";
-function w(t = !1) {
+import { LitElement as A, nothing as p, html as h, ifDefined as E, css as z, property as y, state as m, customElement as H, query as K } from "@umbraco-cms/backoffice/external/lit";
+import { UmbElementMixin as V } from "@umbraco-cms/backoffice/element-api";
+import { UmbPropertyEditorConfigCollection as Y } from "@umbraco-cms/backoffice/property-editor";
+import { UmbContextToken as N } from "@umbraco-cms/backoffice/context-api";
+import "@umbraco-cms/backoffice/tiptap";
+function I(e = !1) {
   return {
     value: "",
-    type: t ? "Th" : "Td",
+    type: e ? "Th" : "Td",
     colspan: 1,
     rowspan: 1
   };
 }
-function S(t, e = !1) {
+function W(e, t = !1) {
   return {
-    cells: Array.from({ length: t }, () => w(e))
+    cells: Array.from({ length: e }, () => I(t))
   };
 }
-function C(t = 3, e = 3, o = !1, a = !1) {
-  const i = [];
-  for (let l = 0; l < t; l++) {
-    const n = o && l === 0, s = { cells: [] };
-    for (let r = 0; r < e; r++) {
-      const c = n || a && r === 0;
-      s.cells.push(w(c));
+function S(e = 3, t = 3, a = !1, l = !1) {
+  const o = [];
+  for (let i = 0; i < e; i++) {
+    const s = a && i === 0, r = { cells: [] };
+    for (let d = 0; d < t; d++) {
+      const _ = s || l && d === 0;
+      r.cells.push(I(_));
     }
-    i.push(s);
+    o.push(r);
   }
   return {
-    rows: i,
-    useFirstRowAsHeader: o,
-    useFirstColumnAsHeader: a
+    rows: o,
+    useFirstRowAsHeader: a,
+    useFirstColumnAsHeader: l
   };
 }
-var M = Object.defineProperty, T = Object.getOwnPropertyDescriptor, f = (t, e, o, a) => {
-  for (var i = a > 1 ? void 0 : a ? T(e, o) : e, l = t.length - 1, n; l >= 0; l--)
-    (n = t[l]) && (i = (a ? n(e, o, i) : n(i)) || i);
-  return a && i && M(e, o, i), i;
+var j = Object.defineProperty, J = Object.getOwnPropertyDescriptor, f = (e, t, a, l) => {
+  for (var o = l > 1 ? void 0 : l ? J(t, a) : t, i = e.length - 1, s; i >= 0; i--)
+    (s = e[i]) && (o = (l ? s(t, a, o) : s(o)) || o);
+  return l && o && j(t, a, o), o;
 };
-function g(t, e, o) {
-  if (!t) return o;
-  const a = t.getValueByAlias(e);
-  return a ?? o;
+function b(e, t, a) {
+  if (!e) return a;
+  const l = e.getValueByAlias(t);
+  return l ?? a;
 }
-let u = class extends R(x) {
+let g = class extends V(A) {
   constructor() {
-    super(...arguments), this.value = "", this.readonly = !1, this._tableData = null, this._editingCell = null, this._draggedRowIndex = null, this._draggedColIndex = null, this._contextMenu = null, this._toolbarPosition = null, this._viewSourceMode = !1, this._savedRange = null, this._savedSelection = null, this._isLinkPickerOpen = !1, this._closeContextMenu = () => {
+    super(...arguments), this.value = "", this.readonly = !1, this._tableData = null, this._parsedValue = "", this._activeCell = { row: 0, col: 0 }, this._editingCell = null, this._rteReady = !1, this._draggedRowIndex = null, this._draggedColIndex = null, this._isDragging = !1, this._contextMenu = null, this._escaping = !1, this._pendingClickX = 0, this._pendingClickY = 0, this._closeContextMenu = () => {
       this._contextMenu && (this._contextMenu = null);
-    }, this._handleOutsideClick = (t) => {
-      var a;
+    }, this._handleOutsideClick = (e) => {
       if (!this._editingCell) return;
-      if (!t.composedPath().some((i) => i instanceof HTMLElement && i.classList.contains("table-editor"))) {
-        if (this._viewSourceMode) {
-          const { row: i, col: l } = this._editingCell, n = (a = this.shadowRoot) == null ? void 0 : a.querySelector(`[data-row="${i}"][data-col="${l}"] .cell-source-editor`);
-          n && this._updateCellValue(i, l, n.value);
-        } else
-          this._saveCellValue(this._editingCell.row, this._editingCell.col);
-        this._editingCell = null, this._toolbarPosition = null, this._viewSourceMode = !1;
-      }
-    }, this._handleSelectionChange = () => {
-      var l, n;
-      if (!this._editingCell || this._viewSourceMode) return;
-      const t = this._getSelection();
-      if (!t || t.rangeCount === 0) return;
-      const e = t.getRangeAt(0), o = e.commonAncestorContainer, a = o.nodeType === Node.TEXT_NODE ? o.parentElement : o, i = (l = this.shadowRoot) == null ? void 0 : l.querySelector(".table-editor");
-      i && a && (i.contains(a) || (n = this.shadowRoot) != null && n.contains(a)) && (a.closest(".formatting-toolbar") || (this._savedRange = e.cloneRange()));
-    }, this._handleDocumentMouseup = () => {
-      var n;
-      if (!this._editingCell || this._viewSourceMode) return;
-      const { row: t, col: e } = this._editingCell, o = (n = this.shadowRoot) == null ? void 0 : n.querySelector(
-        `[data-row="${t}"][data-col="${e}"] .cell-content`
-      );
-      if (!o) return;
-      const a = window.getSelection();
-      if (!a || a.rangeCount === 0) return;
-      const i = a.toString();
-      if (i.length === 0) return;
-      const l = a.getRangeAt(0);
-      try {
-        const s = document.createRange();
-        s.selectNodeContents(o), s.setEnd(l.startContainer, l.startOffset);
-        const r = s.toString().length;
-        this._savedSelection = {
-          start: r,
-          end: r + i.length,
-          text: i
-        };
-      } catch {
-      }
+      const t = e.composedPath();
+      t.some((a) => a === this) || t.some(
+        (a) => a instanceof Element && a.tagName === "UUI-POPOVER-CONTAINER" || a instanceof HTMLDialogElement
+      ) || this._closeRteEditor();
+    }, this._handleDragEnd = () => {
+      this._draggedRowIndex = null, this._draggedColIndex = null, this._isDragging = !1;
     };
   }
-  // Configuration getters
-  _getdefaultRows() {
-    return g(this.config, "defaultRows", 3);
+  _getDefaultRows() {
+    return b(this.config, "defaultRows", 3);
   }
-  _getdefaultColumns() {
-    return g(this.config, "defaultColumns", 3);
+  _getDefaultColumns() {
+    return b(this.config, "defaultColumns", 3);
   }
-  _getminRows() {
-    return g(this.config, "minRows", 1);
+  _getMinRows() {
+    return b(this.config, "minRows", 1);
   }
-  _getmaxRows() {
-    return g(this.config, "maxRows", 0);
+  _getMaxRows() {
+    return b(this.config, "maxRows", 0);
   }
-  _getminColumns() {
-    return g(this.config, "minColumns", 1);
+  _getMinColumns() {
+    return b(this.config, "minColumns", 1);
   }
-  _getmaxColumns() {
-    return g(this.config, "maxColumns", 0);
+  _getMaxColumns() {
+    return b(this.config, "maxColumns", 0);
   }
-  _getshowFirstRowHeader() {
-    return g(this.config, "showUseFirstRowAsHeader", !0);
+  _getShowFirstRowHeader() {
+    return b(this.config, "showUseFirstRowAsHeader", !0);
   }
-  _getshowFirstColHeader() {
-    return g(this.config, "showUseFirstColumnAsHeader", !0);
+  _getShowFirstColHeader() {
+    return b(this.config, "showUseFirstColumnAsHeader", !0);
   }
   _getEnableRichText() {
-    return g(this.config, "enableRichText", !0);
+    return b(this.config, "enableRichText", !0);
   }
   connectedCallback() {
-    super.connectedCallback(), this._parseValue(), window.addEventListener("click", this._closeContextMenu), window.addEventListener("scroll", this._closeContextMenu, !0), document.addEventListener("selectionchange", this._handleSelectionChange), document.addEventListener("mouseup", this._handleDocumentMouseup), window.addEventListener("mousedown", this._handleOutsideClick);
+    super.connectedCallback(), this._parseValue(), window.addEventListener("click", this._closeContextMenu), window.addEventListener("scroll", this._closeContextMenu, !0), window.addEventListener("mousedown", this._handleOutsideClick);
   }
   disconnectedCallback() {
-    super.disconnectedCallback(), window.removeEventListener("click", this._closeContextMenu), window.removeEventListener("scroll", this._closeContextMenu, !0), document.removeEventListener("selectionchange", this._handleSelectionChange), document.removeEventListener("mouseup", this._handleDocumentMouseup), window.removeEventListener("mousedown", this._handleOutsideClick);
+    super.disconnectedCallback(), window.removeEventListener("click", this._closeContextMenu), window.removeEventListener("scroll", this._closeContextMenu, !0), window.removeEventListener("mousedown", this._handleOutsideClick);
+  }
+  _closeRteEditor() {
+    this._rteReady = !1, this._editingCell = null;
+  }
+  _handleRteEditorReady() {
+    this._rteReady = !0;
   }
   _parseValue() {
-    if (!this.value) {
-      this._tableData = C(this._getdefaultRows(), this._getdefaultColumns());
+    if (this._parsedValue = this.value, !this.value) {
+      this._tableData = S(this._getDefaultRows(), this._getDefaultColumns());
       return;
     }
     if (typeof this.value == "string")
       try {
         this._tableData = JSON.parse(this.value);
       } catch {
-        this._tableData = C(this._getdefaultRows(), this._getdefaultColumns());
+        this._tableData = S(this._getDefaultRows(), this._getDefaultColumns());
       }
     else
       this._tableData = this.value;
   }
   _updateValue() {
     if (!this._tableData) return;
-    const t = JSON.stringify(this._tableData);
-    this.value = t, this.dispatchEvent(new CustomEvent("property-value-change", { detail: { value: t }, bubbles: !0, composed: !0 }));
+    const e = JSON.stringify(this._tableData);
+    this._parsedValue = e, this.value = e, this.dispatchEvent(new CustomEvent("property-value-change", { detail: { value: e }, bubbles: !0, composed: !0 }));
   }
-  // --- Logic: Add / Delete / Insert ---
+  // --- Row / Column Operations ---
   _addRow() {
     this._tableData && this._insertRowAt(this._tableData.rows.length);
   }
   _addColumn() {
     var e;
-    if (!this._tableData) return;
-    const t = ((e = this._tableData.rows[0]) == null ? void 0 : e.cells.length) ?? 0;
-    this._insertColumnAt(t);
+    this._tableData && this._insertColumnAt(((e = this._tableData.rows[0]) == null ? void 0 : e.cells.length) ?? 0);
   }
-  _insertRowAt(t) {
+  _insertRowAt(e) {
+    var o;
+    if (!this._tableData) return;
+    const t = this._getMaxRows();
+    if (t > 0 && this._tableData.rows.length >= t) return;
+    const a = ((o = this._tableData.rows[0]) == null ? void 0 : o.cells.length) ?? this._getDefaultColumns(), l = [...this._tableData.rows];
+    l.splice(e, 0, W(a)), this._tableData = { ...this._tableData, rows: l }, this._updateCellTypes(), this._updateValue();
+  }
+  _insertColumnAt(e) {
     var l;
     if (!this._tableData) return;
-    const e = this._getmaxRows();
-    if (e > 0 && this._tableData.rows.length >= e) return;
-    const o = ((l = this._tableData.rows[0]) == null ? void 0 : l.cells.length) ?? this._getdefaultColumns(), a = S(o), i = [...this._tableData.rows];
-    i.splice(t, 0, a), this._tableData = { ...this._tableData, rows: i }, this._updateCellTypes(), this._updateValue();
-  }
-  _insertColumnAt(t) {
-    var i;
-    if (!this._tableData) return;
-    const e = ((i = this._tableData.rows[0]) == null ? void 0 : i.cells.length) ?? 0, o = this._getmaxColumns();
-    if (o > 0 && e >= o) return;
-    const a = this._tableData.rows.map((l, n) => {
-      const s = this._tableData.useFirstRowAsHeader && n === 0 || this._tableData.useFirstColumnAsHeader && t === 0, r = [...l.cells];
-      return r.splice(t, 0, w(s)), { ...l, cells: r };
+    const t = this._getMaxColumns();
+    if (t > 0 && (((l = this._tableData.rows[0]) == null ? void 0 : l.cells.length) ?? 0) >= t) return;
+    const a = this._tableData.rows.map((o) => {
+      const i = [...o.cells];
+      return i.splice(e, 0, I(!1)), { ...o, cells: i };
     });
     this._tableData = { ...this._tableData, rows: a }, this._updateCellTypes(), this._updateValue();
   }
-  _deleteRow(t) {
-    if (!this._tableData || this._tableData.rows.length <= this._getminRows()) return;
-    const e = [...this._tableData.rows];
-    e.splice(t, 1), this._tableData = { ...this._tableData, rows: e }, this._updateCellTypes(), this._updateValue();
+  _deleteRow(e) {
+    if (!this._tableData || this._tableData.rows.length <= this._getMinRows()) return;
+    const t = [...this._tableData.rows];
+    t.splice(e, 1), this._tableData = { ...this._tableData, rows: t }, this._clampActiveCell(), this._updateCellTypes(), this._updateValue();
   }
-  _deleteColumn(t) {
+  _deleteColumn(e) {
     var a;
-    if (!this._tableData || (((a = this._tableData.rows[0]) == null ? void 0 : a.cells.length) ?? 0) <= this._getminColumns()) return;
-    const o = this._tableData.rows.map((i) => {
-      const l = [...i.cells];
-      return l.splice(t, 1), { ...i, cells: l };
+    if (!this._tableData || (((a = this._tableData.rows[0]) == null ? void 0 : a.cells.length) ?? 0) <= this._getMinColumns()) return;
+    const t = this._tableData.rows.map((l) => {
+      const o = [...l.cells];
+      return o.splice(e, 1), { ...l, cells: o };
     });
-    this._tableData = { ...this._tableData, rows: o }, this._updateCellTypes(), this._updateValue();
+    this._tableData = { ...this._tableData, rows: t }, this._clampActiveCell(), this._updateCellTypes(), this._updateValue();
+  }
+  _clampActiveCell() {
+    var a;
+    if (!this._tableData) return;
+    const e = this._tableData.rows.length, t = ((a = this._tableData.rows[0]) == null ? void 0 : a.cells.length) ?? 0;
+    this._activeCell = {
+      row: Math.max(0, Math.min(this._activeCell.row, e - 1)),
+      col: Math.max(0, Math.min(this._activeCell.col, t - 1))
+    };
   }
   _updateCellTypes() {
     if (!this._tableData) return;
-    const t = this._tableData.rows.map((e, o) => ({
-      ...e,
-      cells: e.cells.map((a, i) => ({
-        ...a,
-        type: this._tableData.useFirstRowAsHeader && o === 0 || this._tableData.useFirstColumnAsHeader && i === 0 ? "Th" : "Td"
+    const e = this._tableData.rows.map((t, a) => ({
+      ...t,
+      cells: t.cells.map((l, o) => ({
+        ...l,
+        type: this._tableData.useFirstRowAsHeader && a === 0 || this._tableData.useFirstColumnAsHeader && o === 0 ? "Th" : "Td"
       }))
     }));
-    this._tableData = { ...this._tableData, rows: t }, this._updateValue();
+    this._tableData = { ...this._tableData, rows: e };
   }
-  _updateCellValue(t, e, o) {
-    var l, n;
-    if (!this._tableData || ((n = (l = this._tableData.rows[t]) == null ? void 0 : l.cells[e]) == null ? void 0 : n.value) === o) return;
-    const i = this._tableData.rows.map((s, r) => r !== t ? s : { ...s, cells: s.cells.map((c, d) => d !== e ? c : { ...c, value: o }) });
-    this._tableData = { ...this._tableData, rows: i }, this._updateValue();
+  _updateCellValue(e, t, a) {
+    var o, i;
+    if (!this._tableData || ((i = (o = this._tableData.rows[e]) == null ? void 0 : o.cells[t]) == null ? void 0 : i.value) === a) return;
+    const l = this._tableData.rows.map(
+      (s, r) => r !== e ? s : { ...s, cells: s.cells.map((d, _) => _ !== t ? d : { ...d, value: a }) }
+    );
+    this._tableData = { ...this._tableData, rows: l }, this._updateValue();
   }
   _toggleFirstRowHeader() {
-    !this._tableData || this.readonly || (this._tableData = { ...this._tableData, useFirstRowAsHeader: !this._tableData.useFirstRowAsHeader }, this._updateCellTypes());
+    !this._tableData || this.readonly || (this._tableData = { ...this._tableData, useFirstRowAsHeader: !this._tableData.useFirstRowAsHeader }, this._updateCellTypes(), this._updateValue());
   }
   _toggleFirstColumnHeader() {
-    !this._tableData || this.readonly || (this._tableData = { ...this._tableData, useFirstColumnAsHeader: !this._tableData.useFirstColumnAsHeader }, this._updateCellTypes());
+    !this._tableData || this.readonly || (this._tableData = { ...this._tableData, useFirstColumnAsHeader: !this._tableData.useFirstColumnAsHeader }, this._updateCellTypes(), this._updateValue());
   }
-  // --- Rich Text Logic ---
-  _execCommand(t, e = void 0) {
-    var l;
-    if (!this._editingCell || this._viewSourceMode) return;
-    const { row: o, col: a } = this._editingCell, i = (l = this.shadowRoot) == null ? void 0 : l.querySelector(`[data-row="${o}"][data-col="${a}"] .cell-content`);
-    if (i && i.focus(), this._savedRange) {
-      const n = window.getSelection();
-      n && (n.removeAllRanges(), n.addRange(this._savedRange));
-    }
-    document.execCommand(t, !1, e), this._saveCellValue(o, a);
+  // --- Context Menu ---
+  _handleContextMenu(e, t, a) {
+    this.readonly || (e.preventDefault(), this._contextMenu = { x: e.clientX, y: e.clientY, row: t, col: a });
   }
-  _formatBold() {
-    this._execCommand("bold");
-  }
-  _formatItalic() {
-    this._execCommand("italic");
-  }
-  _formatUnderline() {
-    this._execCommand("underline");
-  }
-  _alignLeft() {
-    this._execCommand("justifyLeft");
-  }
-  _alignCenter() {
-    this._execCommand("justifyCenter");
-  }
-  _alignRight() {
-    this._execCommand("justifyRight");
-  }
-  // --- Link Picker ---
-  async _insertLink() {
-    var s, r;
-    if (!this._editingCell || this._viewSourceMode) return;
-    const { row: t, col: e } = this._editingCell, o = (s = this.shadowRoot) == null ? void 0 : s.querySelector(
-      `[data-row="${t}"][data-col="${e}"] .cell-content`
-    );
-    if (!o) return;
-    const a = ((r = this._savedSelection) == null ? void 0 : r.text) || "";
-    this._isLinkPickerOpen = !0;
-    const i = await this.getContext(k);
-    if (!i) {
-      this._isLinkPickerOpen = !1, this._savedSelection = null;
-      return;
-    }
-    const n = await i.open(this, $, {
-      data: {
-        config: {},
-        index: null,
-        isNew: !0
-      },
-      value: {
-        link: {
-          name: a,
-          url: "",
-          target: "",
-          type: null,
-          unique: "",
-          queryString: ""
-        }
-      }
-    }).onSubmit().catch(() => null);
-    this._isLinkPickerOpen = !1, n != null && n.link ? this._applyLink(n.link, o) : this._savedSelection = null;
-  }
-  _applyLink(t, e) {
-    var n;
-    let o = t.url || "";
-    if (t.queryString && (o += (o.includes("?") ? "&" : "?") + t.queryString.replace(/^\?/, "")), !o) {
-      this._savedSelection = null;
-      return;
-    }
-    const a = t.target === "_blank" ? ' target="_blank" rel="noopener noreferrer"' : "", i = ((n = this._savedSelection) == null ? void 0 : n.text) || t.name || o, l = `<a href="${o}"${a}>${this._escapeHtml(i)}</a>`;
-    if (this._savedSelection && this._savedSelection.text) {
-      const s = e.innerHTML, { start: r, end: c } = this._savedSelection, d = e.textContent || "";
-      if (s === this._escapeHtml(d) || s === d) {
-        const _ = d.substring(0, r), m = d.substring(c);
-        e.innerHTML = this._escapeHtml(_) + l + this._escapeHtml(m);
-      } else
-        e.innerHTML = s + " " + l;
-    } else
-      e.innerHTML += l;
-    if (this._editingCell) {
-      const { row: s, col: r } = this._editingCell;
-      this._updateCellValue(s, r, e.innerHTML);
-    }
-    this._savedSelection = null, e.focus();
-  }
-  _escapeHtml(t) {
-    const e = document.createElement("div");
-    return e.textContent = t, e.innerHTML;
-  }
-  _removeLink() {
-    this._execCommand("unlink");
-  }
-  // --- View Source Logic ---
-  // Fix for Bug 2: Handle data transfer and re-rendering between modes
-  async _toggleViewSource() {
-    var o, a, i, l, n, s;
-    if (!this._editingCell) return;
-    const { row: t, col: e } = this._editingCell;
-    if (this._viewSourceMode) {
-      const r = (o = this.shadowRoot) == null ? void 0 : o.querySelector(`[data-row="${t}"][data-col="${e}"] .cell-source-editor`);
-      let c = "";
-      r ? (c = r.value, this._updateCellValue(t, e, c)) : c = ((l = (i = (a = this._tableData) == null ? void 0 : a.rows[t]) == null ? void 0 : i.cells[e]) == null ? void 0 : l.value) || "", this._viewSourceMode = !1, await this.updateComplete;
-      const d = (n = this.shadowRoot) == null ? void 0 : n.querySelector(`[data-row="${t}"][data-col="${e}"] .cell-content`);
-      if (d) {
-        d.innerHTML = c, d.focus();
-        const _ = d.closest("td");
-        _ && this._updateToolbarPosition(_);
-      }
-    } else {
-      this._saveCellValue(t, e), this._viewSourceMode = !0, await this.updateComplete;
-      const r = (s = this.shadowRoot) == null ? void 0 : s.querySelector(`[data-row="${t}"][data-col="${e}"] .cell-source-editor`);
-      r && r.focus();
-    }
-  }
-  _handleSourceChange(t, e, o) {
-    const a = t.target;
-    this._updateCellValue(e, o, a.value);
-  }
-  // --- Context Menu Handlers ---
-  _handleContextMenu(t, e, o) {
-    this.readonly || (t.preventDefault(), this._contextMenu = {
-      x: t.clientX,
-      y: t.clientY,
-      row: e,
-      col: o
-    });
-  }
-  _handleMenuAction(t) {
+  _handleMenuAction(e) {
     if (!this._contextMenu) return;
-    const { row: e, col: o } = this._contextMenu;
-    switch (t) {
+    const { row: t, col: a } = this._contextMenu;
+    switch (e) {
       case "insert-row-before":
-        this._insertRowAt(e);
+        this._insertRowAt(t);
         break;
       case "insert-row-after":
-        this._insertRowAt(e + 1);
+        this._insertRowAt(t + 1);
         break;
       case "insert-col-before":
-        this._insertColumnAt(o);
+        this._insertColumnAt(a);
         break;
       case "insert-col-after":
-        this._insertColumnAt(o + 1);
+        this._insertColumnAt(a + 1);
         break;
       case "delete-row":
-        this._deleteRow(e);
+        this._deleteRow(t);
         break;
       case "delete-col":
-        this._deleteColumn(o);
+        this._deleteColumn(a);
         break;
     }
     this._closeContextMenu();
   }
-  // --- ROW Drag and Drop ---
-  _handleRowDragStart(t, e) {
-    if (!this.readonly && (this._draggedRowIndex = e, t.dataTransfer)) {
-      t.dataTransfer.effectAllowed = "move", t.dataTransfer.setData("text/plain", `row:${e}`);
-      const a = t.target.closest("tr");
-      a && t.dataTransfer.setDragImage(a, 0, 0);
+  // --- Row Drag and Drop ---
+  _handleRowDragStart(e, t) {
+    if (!this.readonly && (e.stopPropagation(), this._draggedRowIndex = t, this._isDragging = !0, e.dataTransfer)) {
+      e.dataTransfer.effectAllowed = "move", e.dataTransfer.setData("application/x-umbhost-table-drag", `row:${t}`);
+      const a = e.target.closest("tr");
+      a && e.dataTransfer.setDragImage(a, 0, 0);
     }
   }
-  _handleRowDrop(t, e) {
-    if (this.readonly || this._draggedRowIndex === null) return;
-    t.preventDefault();
-    const o = this._draggedRowIndex, a = e;
-    o !== a && this._moveRow(o, a), this._draggedRowIndex = null;
+  _handleRowDrop(e, t) {
+    this.readonly || this._draggedRowIndex === null || (e.preventDefault(), this._draggedRowIndex !== t && this._moveRow(this._draggedRowIndex, t), this._draggedRowIndex = null, this._isDragging = !1);
   }
-  _moveRow(t, e) {
+  _moveRow(e, t) {
     if (!this._tableData) return;
-    const o = [...this._tableData.rows], [a] = o.splice(t, 1);
-    o.splice(e, 0, a), this._tableData = { ...this._tableData, rows: o }, this._updateCellTypes(), this._updateValue();
+    const a = [...this._tableData.rows], [l] = a.splice(e, 1);
+    a.splice(t, 0, l), this._tableData = { ...this._tableData, rows: a }, this._updateCellTypes(), this._updateValue();
   }
-  // --- COLUMN Drag and Drop ---
-  _handleColDragStart(t, e) {
-    this.readonly || (this._draggedColIndex = e, t.dataTransfer && (t.dataTransfer.effectAllowed = "move", t.dataTransfer.setData("text/plain", `col:${e}`)));
+  // --- Column Drag and Drop ---
+  _handleColDragStart(e, t) {
+    this.readonly || (e.stopPropagation(), this._draggedColIndex = t, this._isDragging = !0, e.dataTransfer && (e.dataTransfer.effectAllowed = "move", e.dataTransfer.setData("application/x-umbhost-table-drag", `col:${t}`)));
   }
-  _handleColDrop(t, e) {
-    if (this.readonly || this._draggedColIndex === null) return;
-    t.preventDefault();
-    const o = this._draggedColIndex, a = e;
-    o !== a && this._moveColumn(o, a), this._draggedColIndex = null;
+  _handleColDrop(e, t) {
+    this.readonly || this._draggedColIndex === null || (e.preventDefault(), this._draggedColIndex !== t && this._moveColumn(this._draggedColIndex, t), this._draggedColIndex = null, this._isDragging = !1);
   }
-  _moveColumn(t, e) {
+  _moveColumn(e, t) {
     if (!this._tableData) return;
-    const o = this._tableData.rows.map((a) => {
-      const i = [...a.cells], [l] = i.splice(t, 1);
-      return i.splice(e, 0, l), { ...a, cells: i };
+    const a = this._tableData.rows.map((l) => {
+      const o = [...l.cells], [i] = o.splice(e, 1);
+      return o.splice(t, 0, i), { ...l, cells: o };
     });
-    this._tableData = { ...this._tableData, rows: o }, this._updateCellTypes(), this._updateValue();
+    this._tableData = { ...this._tableData, rows: a }, this._updateCellTypes(), this._updateValue();
   }
-  _handleDragOver(t) {
-    this.readonly || (t.preventDefault(), t.dataTransfer && (t.dataTransfer.dropEffect = "move"));
+  _handleDragOver(e) {
+    this.readonly || (e.preventDefault(), e.dataTransfer && (e.dataTransfer.dropEffect = "move"));
   }
-  _getSelection() {
-    const t = this.shadowRoot;
-    return t && typeof t.getSelection == "function" ? t.getSelection() : window.getSelection();
+  // --- Plain-text cell handlers (textarea) ---
+  _handleTextareaFocus(e, t) {
+    this._activeCell = { row: e, col: t };
   }
-  _toggleLinkClass() {
-    if (!this._editingCell || this._viewSourceMode) return;
-    if (this._savedRange) {
-      const l = this._getSelection();
-      l && (l.removeAllRanges(), l.addRange(this._savedRange));
-    }
-    const t = this._getSelection();
-    if (!t || t.rangeCount === 0) return;
-    const e = t.getRangeAt(0), o = e.commonAncestorContainer, a = o.nodeType === Node.TEXT_NODE ? o.parentElement : o;
-    if (!a) return;
-    let i = a.closest("a");
-    if (i || e.cloneContents().querySelector("a") && (i = a.querySelector("a"), i && !t.containsNode(i, !0) && (i = null)), i) {
-      i.classList.contains("btn-primary") ? i.classList.remove("btn", "btn-primary") : i.classList.add("btn", "btn-primary");
-      const { row: l, col: n } = this._editingCell;
-      this._saveCellValue(l, n);
-    }
+  _handleTextareaBlur(e, t, a) {
+    this._updateCellValue(t, a, e.target.value);
   }
-  // --- Editing Logic ---
-  _updateToolbarPosition(t) {
-    var n;
-    const e = (n = this.shadowRoot) == null ? void 0 : n.querySelector(".table-editor");
-    if (!e || !t) return;
-    const o = t.getBoundingClientRect(), a = e.getBoundingClientRect();
-    let i = o.top - a.top - 65, l = o.left - a.left;
-    i < 0 && (i = o.bottom - a.top + 4), this._toolbarPosition = { top: i, left: l };
+  _handleTextareaInput(e) {
+    var l;
+    const t = e.target;
+    t.style.height = "auto";
+    const a = ((l = t.closest("td")) == null ? void 0 : l.clientHeight) ?? 0;
+    t.style.height = `${Math.min(Math.max(t.scrollHeight, a), 240)}px`;
   }
-  _handleCellClick(t, e, o) {
-    var i, l;
-    if (this.readonly || t.button === 2) return;
-    const a = t.target;
-    if (!a.classList.contains("cell-source-editor")) {
-      if ((a.tagName === "A" || a.closest("a")) && t.preventDefault(), ((i = this._editingCell) == null ? void 0 : i.row) === e && ((l = this._editingCell) == null ? void 0 : l.col) === o) {
-        const s = t.target.closest(".cell");
-        s && this._updateToolbarPosition(s);
-        return;
-      }
-      this._editingCell && this._saveCellValue(this._editingCell.row, this._editingCell.col), this._editingCell = { row: e, col: o }, this._viewSourceMode = !1, this.updateComplete.then(() => {
-        var s;
-        const n = (s = this.shadowRoot) == null ? void 0 : s.querySelector(`[data-row="${e}"][data-col="${o}"] .cell-content`);
-        if (n) {
-          n.focus();
-          const r = n.closest("td");
-          r && this._updateToolbarPosition(r);
-        }
+  _handleTextareaKeydown(e, t, a) {
+    var r, d, _;
+    if (e.key !== "Tab") return;
+    const l = ((r = this._tableData) == null ? void 0 : r.rows.length) ?? 0, o = ((_ = (d = this._tableData) == null ? void 0 : d.rows[0]) == null ? void 0 : _.cells.length) ?? 0;
+    let i = t, s = a + (e.shiftKey ? -1 : 1);
+    s >= o ? (s = 0, i++) : s < 0 && (s = o - 1, i--), !(i < 0 || i >= l) && (e.preventDefault(), this._activeCell = { row: i, col: s }, this.updateComplete.then(() => {
+      var x, C;
+      (C = (x = this.shadowRoot) == null ? void 0 : x.querySelector(
+        `[data-row="${i}"][data-col="${s}"] .cell-textarea`
+      )) == null || C.focus();
+    }));
+  }
+  // --- RTE cell handlers (<td>/<th> level) ---
+  _handleRteCellFocus(e, t) {
+    var a, l;
+    this._activeCell = { row: e, col: t }, this._escaping || ((a = this._editingCell) == null ? void 0 : a.row) === e && ((l = this._editingCell) == null ? void 0 : l.col) === t || (this._rteReady = !1, this._editingCell = { row: e, col: t });
+  }
+  _handleRteCellKeydown(e, t, a) {
+    var d, _, x, C, D;
+    const l = ((d = this._tableData) == null ? void 0 : d.rows.length) ?? 0, o = ((x = (_ = this._tableData) == null ? void 0 : _.rows[0]) == null ? void 0 : x.cells.length) ?? 0, i = ((C = this._editingCell) == null ? void 0 : C.row) === t && ((D = this._editingCell) == null ? void 0 : D.col) === a;
+    if (e.key === "Escape" && i) {
+      e.preventDefault(), this._escaping = !0, this._closeRteEditor(), this.updateComplete.then(() => {
+        var c, u;
+        (u = (c = this.shadowRoot) == null ? void 0 : c.querySelector(`[data-row="${t}"][data-col="${a}"]`)) == null || u.focus(), requestAnimationFrame(() => {
+          this._escaping = !1;
+        });
       });
+      return;
     }
+    if (e.key === "Tab") {
+      let c = t, u = a + (e.shiftKey ? -1 : 1);
+      if (u >= o ? (u = 0, c++) : u < 0 && (u = o - 1, c--), c < 0 || c >= l) return;
+      e.preventDefault(), i && this._closeRteEditor(), this._activeCell = { row: c, col: u }, this.updateComplete.then(() => {
+        var $, R;
+        (R = ($ = this.shadowRoot) == null ? void 0 : $.querySelector(
+          `[data-row="${c}"][data-col="${u}"]`
+        )) == null || R.focus();
+      });
+      return;
+    }
+    if (i) return;
+    let s = t, r = a;
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault(), r = Math.min(o - 1, a + 1);
+        break;
+      case "ArrowLeft":
+        e.preventDefault(), r = Math.max(0, a - 1);
+        break;
+      case "ArrowDown":
+        e.preventDefault(), s = Math.min(l - 1, t + 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault(), s = Math.max(0, t - 1);
+        break;
+      // Enter or Space as a fallback to manually activate TipTap if auto-focus failed.
+      case "Enter":
+      case " ":
+        e.preventDefault(), this._handleRteCellFocus(t, a);
+        return;
+      default:
+        return;
+    }
+    (s !== t || r !== a) && (this._activeCell = { row: s, col: r }, this.updateComplete.then(() => {
+      var c, u;
+      (u = (c = this.shadowRoot) == null ? void 0 : c.querySelector(
+        `[data-row="${s}"][data-col="${r}"]`
+      )) == null || u.focus();
+    }));
   }
-  _handleCellContentClick(t) {
-    const e = t.target;
-    (e.tagName === "A" || e.closest("a")) && (t.preventDefault(), t.stopPropagation());
+  // --- DOM sync ---
+  updated(e) {
+    super.updated(e), e.has("value") && this.value !== this._parsedValue && this._parseValue(), this._getEnableRichText() || (this._syncTextareaValues(), this._resizeTextareas());
   }
-  _handleCellBlur(t, e) {
-    this._isLinkPickerOpen || requestAnimationFrame(() => {
-      var o, a, i;
-      if (((o = this._editingCell) == null ? void 0 : o.row) === t && ((a = this._editingCell) == null ? void 0 : a.col) === e)
-        if (this._viewSourceMode) {
-          const l = (i = this.shadowRoot) == null ? void 0 : i.querySelector(`[data-row="${t}"][data-col="${e}"] .cell-source-editor`);
-          l && this._updateCellValue(t, e, l.value);
-        } else
-          this._saveCellValue(t, e);
+  // Set textarea values from _tableData, skipping the currently focused textarea so
+  // in-progress typing is never overwritten.
+  _syncTextareaValues() {
+    var t;
+    if (!this._tableData) return;
+    const e = (t = this.shadowRoot) == null ? void 0 : t.activeElement;
+    this._tableData.rows.forEach((a, l) => {
+      a.cells.forEach((o, i) => {
+        var d;
+        const s = (d = this.shadowRoot) == null ? void 0 : d.querySelector(
+          `[data-row="${l}"][data-col="${i}"] .cell-textarea`
+        );
+        if (!s || s === e) return;
+        const r = this._htmlToText(o.value || "");
+        s.value !== r && (s.value = r);
+      });
     });
   }
-  _handleCellKeydown(t, e, o) {
-    var a, i, l;
-    if (!this._viewSourceMode && !((t.ctrlKey || t.metaKey) && ["b", "i", "u"].includes(t.key.toLowerCase())) && t.key === "Tab") {
-      t.preventDefault(), this._saveCellValue(e, o);
-      const n = ((a = this._tableData) == null ? void 0 : a.rows.length) ?? 0, s = ((l = (i = this._tableData) == null ? void 0 : i.rows[0]) == null ? void 0 : l.cells.length) ?? 0;
-      let r = e, c = o + (t.shiftKey ? -1 : 1);
-      c >= s ? (c = 0, r++) : c < 0 && (c = s - 1, r--), r >= 0 && r < n && (this._editingCell = { row: r, col: c }, this._viewSourceMode = !1, this.updateComplete.then(() => {
-        var _;
-        const d = (_ = this.shadowRoot) == null ? void 0 : _.querySelector(`[data-row="${r}"][data-col="${c}"] .cell-content`);
-        if (d) {
-          d.focus();
-          const m = d.closest("td");
-          m && this._updateToolbarPosition(m);
-        }
-      }));
-    }
+  _resizeTextareas() {
+    var e;
+    (e = this.shadowRoot) == null || e.querySelectorAll(".cell-textarea").forEach((t) => {
+      var l;
+      t.style.height = "auto";
+      const a = ((l = t.closest("td")) == null ? void 0 : l.clientHeight) ?? 0;
+      t.style.height = `${Math.min(Math.max(t.scrollHeight, a), 240)}px`;
+    });
   }
-  _saveCellValue(t, e) {
-    var a;
-    if (t < 0 || e < 0) return;
-    const o = (a = this.shadowRoot) == null ? void 0 : a.querySelector(`[data-row="${t}"][data-col="${e}"] .cell-content`);
-    o && this._updateCellValue(t, e, o.innerHTML);
+  _htmlToText(e) {
+    if (!e) return "";
+    const t = document.createElement("div");
+    return t.innerHTML = e, t.innerText ?? t.textContent ?? "";
   }
   // --- Render ---
   _renderContextMenu() {
     return this._contextMenu ? h`
-        <div class="context-menu" style="top: ${this._contextMenu.y}px; left: ${this._contextMenu.x}px;" @click=${(t) => t.stopPropagation()}>
-            <div class="menu-item" @click=${() => this._handleMenuAction("insert-row-before")}>Insert Row Before</div>
-            <div class="menu-item" @click=${() => this._handleMenuAction("insert-row-after")}>Insert Row After</div>
-            <div class="menu-divider"></div>
-            <div class="menu-item" @click=${() => this._handleMenuAction("insert-col-before")}>Insert Column Before</div>
-            <div class="menu-item" @click=${() => this._handleMenuAction("insert-col-after")}>Insert Column After</div>
-            <div class="menu-divider"></div>
-            <div class="menu-item danger" @click=${() => this._handleMenuAction("delete-row")}>Delete Row</div>
-            <div class="menu-item danger" @click=${() => this._handleMenuAction("delete-col")}>Delete Column</div>
-        </div>
-      ` : b;
-  }
-  _renderFormattingToolbar() {
-    if (!this._toolbarPosition) return b;
-    const t = `top: ${this._toolbarPosition.top}px; left: ${this._toolbarPosition.left}px;`, e = (o, a) => {
-      o.preventDefault(), o.stopPropagation(), a();
-    };
-    return h`
-      <div class="formatting-toolbar" style="${t}" @mousedown=${(o) => {
-      o.preventDefault(), o.stopPropagation();
-    }}>
-        <div class="format-group">
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._formatBold())} title="Bold"><strong>B</strong></button>
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._formatItalic())} title="Italic"><em>I</em></button>
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._formatUnderline())} title="Underline"><span style="text-decoration:underline">U</span></button>
-        </div>
-        <div class="format-divider"></div>
-        <div class="format-group">
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._alignLeft())} title="Align Left">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v1H2V3zm0 3h8v1H2V6zm0 3h12v1H2V9zm0 3h8v1H2v-1z"/></svg>
-          </button>
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._alignCenter())} title="Align Center">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v1H2V3zm2 3h8v1H4V6zm-2 3h12v1H2V9zm2 3h8v1H4v-1z"/></svg>
-          </button>
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._alignRight())} title="Align Right">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v1H2V3zm4 3h8v1H6V6zm-4 3h12v1H2V9zm4 3h8v1H6v-1z"/></svg>
-          </button>
-        </div>
-        <div class="format-divider"></div>
-        <div class="format-group">
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._insertLink())} title="Insert Link">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z"/><path d="M9 5.5a3 3 0 0 0-2.83 4h1.098A2 2 0 0 1 9 6h3a2 2 0 1 1 0 4h-1.535a4.02 4.02 0 0 1-.82 1H12a3 3 0 1 0 0-6H9z"/></svg>
-          </button>
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._toggleLinkClass())} title="Toggle Button Style">
-             <span style="font-size: 10px; font-weight: bold; border: 1px solid currentColor; padding: 0 2px; border-radius: 2px;">BTN</span>
-          </button>
-          <button type="button" class="format-btn" @click=${(o) => e(o, () => this._removeLink())} title="Remove Link">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z"/><path d="M9 5.5a3 3 0 0 0-2.83 4h1.098A2 2 0 0 1 9 6h3a2 2 0 1 1 0 4h-1.535a4.02 4.02 0 0 1-.82 1H12a3 3 0 1 0 0-6H9z"/><path d="M2 2l12 12" stroke="currentColor" stroke-width="1.5"/></svg>
-          </button>
-        </div>
-        <div class="format-divider"></div>
-        <div class="format-group">
-           <button type="button" class="format-btn ${this._viewSourceMode ? "active" : ""}" @click=${(o) => e(o, () => this._toggleViewSource())} title="View Source">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-           </button>
-        </div>
+      <div class="context-menu"
+           style="top:${this._contextMenu.y}px;left:${this._contextMenu.x}px"
+           @click=${(e) => e.stopPropagation()}>
+        <div class="menu-item" @click=${() => this._handleMenuAction("insert-row-before")}>Insert Row Before</div>
+        <div class="menu-item" @click=${() => this._handleMenuAction("insert-row-after")}>Insert Row After</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" @click=${() => this._handleMenuAction("insert-col-before")}>Insert Column Before</div>
+        <div class="menu-item" @click=${() => this._handleMenuAction("insert-col-after")}>Insert Column After</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item danger" @click=${() => this._handleMenuAction("delete-row")}>Delete Row</div>
+        <div class="menu-item danger" @click=${() => this._handleMenuAction("delete-col")}>Delete Column</div>
       </div>
-    `;
-  }
-  updated(t) {
-    super.updated(t), this._syncCellContents();
-  }
-  _syncCellContents() {
-    this._tableData && this._tableData.rows.forEach((t, e) => {
-      t.cells.forEach((o, a) => {
-        var n, s, r;
-        if (((n = this._editingCell) == null ? void 0 : n.row) === e && ((s = this._editingCell) == null ? void 0 : s.col) === a) return;
-        const l = (r = this.shadowRoot) == null ? void 0 : r.querySelector(
-          `[data-row="${e}"][data-col="${a}"] .cell-content`
-        );
-        l && l.innerHTML !== (o.value || "") && (l.innerHTML = o.value || "");
-      });
-    });
+    ` : p;
   }
   render() {
-    var o;
+    var l;
     if (!this._tableData) return h`<div>Loading...</div>`;
-    const t = ((o = this._tableData.rows[0]) == null ? void 0 : o.cells.length) ?? 0, e = Array.from({ length: t }, (a, i) => i);
+    const e = ((l = this._tableData.rows[0]) == null ? void 0 : l.cells.length) ?? 0, t = Array.from({ length: e }, (o, i) => i), a = this._getEnableRichText();
     return h`
-      <div class="table-editor">
+      <div class="table-editor ${this._isDragging ? "is-dragging" : ""}">
         ${this._renderContextMenu()}
-      
+
         <div class="toolbar">
           <div class="toolbar-left">
-            ${this.readonly ? b : h`
-              <uui-button look="outline" label="Add Row" @click=${() => this._addRow()}>Add Row</uui-button>
+            ${this.readonly ? p : h`
+              <uui-button look="outline" label="Add Row"    @click=${() => this._addRow()}>Add Row</uui-button>
               <uui-button look="outline" label="Add Column" @click=${() => this._addColumn()}>Add Column</uui-button>
             `}
           </div>
           <div class="toolbar-right">
-            ${this._getshowFirstRowHeader() ? h`<uui-toggle label="First row is header" ?checked=${this._tableData.useFirstRowAsHeader} ?disabled=${this.readonly} @change=${this._toggleFirstRowHeader}></uui-toggle>` : b}
-            ${this._getshowFirstColHeader() ? h`<uui-toggle label="First column is header" ?checked=${this._tableData.useFirstColumnAsHeader} ?disabled=${this.readonly} @change=${this._toggleFirstColumnHeader}></uui-toggle>` : b}
+            ${this._getShowFirstRowHeader() ? h`
+              <uui-toggle ?checked=${this._tableData.useFirstRowAsHeader}
+                          ?disabled=${this.readonly}
+                          @change=${this._toggleFirstRowHeader}>First row is header</uui-toggle>
+            ` : p}
+            ${this._getShowFirstColHeader() ? h`
+              <uui-toggle ?checked=${this._tableData.useFirstColumnAsHeader}
+                          ?disabled=${this.readonly}
+                          @change=${this._toggleFirstColumnHeader}>First column is header</uui-toggle>
+            ` : p}
           </div>
         </div>
 
-        ${this._getEnableRichText() && this._editingCell && !this.readonly ? this._renderFormattingToolbar() : b}
-
         <div class="table-container">
-          <table>
-            <tr class="col-handle-row">
-                <td class="corner-cell"></td>
-                ${e.map((a) => h`
-                    <td class="col-handle-cell ${this._draggedColIndex === a ? "dragging" : ""}"
-                        draggable="${!this.readonly}"
-                        @dragstart=${(i) => this._handleColDragStart(i, a)}
-                        @dragover=${this._handleDragOver}
-                        @drop=${(i) => this._handleColDrop(i, a)}
-                        @contextmenu=${(i) => this._handleContextMenu(i, 0, a)}
-                    >
-                        <div class="col-drag-handle" title="Drag to reorder column">≡</div>
-                    </td>
-                `)}
+          <table role="grid" aria-label="Table editor">
+            <tr class="col-handle-row" aria-hidden="true">
+              <td class="corner-cell"></td>
+              ${t.map((o) => h`
+                <td class="col-handle-cell ${this._draggedColIndex === o ? "dragging" : ""}"
+                    draggable="${!this.readonly}"
+                    @pointerdown=${(i) => i.stopPropagation()}
+                    @dragstart=${(i) => this._handleColDragStart(i, o)}
+                    @dragend=${this._handleDragEnd}
+                    @dragover=${this._handleDragOver}
+                    @drop=${(i) => this._handleColDrop(i, o)}
+                    @contextmenu=${(i) => this._handleContextMenu(i, 0, o)}>
+                  <div class="col-drag-handle" title="Drag to reorder column">≡</div>
+                </td>
+              `)}
             </tr>
 
-            ${this._tableData.rows.map((a, i) => h`
-              <tr 
-                @dragover=${this._handleDragOver}
-                @drop=${(l) => this._handleRowDrop(l, i)}
-                class="${this._draggedRowIndex === i ? "dragging" : ""}"
-              >
-                <td class="handle-cell"
+            ${this._tableData.rows.map((o, i) => h`
+              <tr class="${this._draggedRowIndex === i ? "dragging" : ""}"
+                  @dragover=${this._handleDragOver}
+                  @drop=${(s) => this._handleRowDrop(s, i)}>
+
+                <td class="handle-cell" aria-hidden="true"
                     draggable="${!this.readonly}"
-                    @dragstart=${(l) => this._handleRowDragStart(l, i)}
-                    @contextmenu=${(l) => this._handleContextMenu(l, i, 0)}
-                >
-                   <div class="row-drag-handle" title="Drag to reorder row">≡</div>
+                    @pointerdown=${(s) => s.stopPropagation()}
+                    @dragstart=${(s) => this._handleRowDragStart(s, i)}
+                    @dragend=${this._handleDragEnd}
+                    @contextmenu=${(s) => this._handleContextMenu(s, i, 0)}>
+                  <div class="row-drag-handle" title="Drag to reorder row">≡</div>
                 </td>
 
-                ${a.cells.map((l, n) => {
-      var r, c;
-      const s = !this.readonly && ((r = this._editingCell) == null ? void 0 : r.row) === i && ((c = this._editingCell) == null ? void 0 : c.col) === n;
-      return h`
-                        <td class="cell ${l.type === "Th" ? "header-cell" : ""} ${s ? "editing" : ""}" 
-                            data-row="${i}" 
-                            data-col="${n}"
-                            @click=${(d) => this._handleCellClick(d, i, n)}
-                            @contextmenu=${(d) => this._handleContextMenu(d, i, n)}
-                            >
-                            ${s && this._viewSourceMode ? h`
-                                <textarea class="cell-source-editor"
-                                          .value=${l.value || ""}
-                                          @blur=${() => this._handleCellBlur(i, n)}
-                                          @input=${(d) => this._handleSourceChange(d, i, n)}
-                                ></textarea>
-                                ` : h`
-                                <div class="cell-content" 
-                                    contenteditable="${s ? "true" : "false"}"
-                                    @blur=${() => this._handleCellBlur(i, n)}
-                                    @keydown=${(d) => this._handleCellKeydown(d, i, n)}
-                                    @click=${(d) => this._handleCellContentClick(d)}
-                                ></div>
-                                `}
-                        </td>
-                    `;
+                ${o.cells.map((s, r) => {
+      var F, O;
+      const d = this._activeCell.row === i && this._activeCell.col === r, _ = a && ((F = this._editingCell) == null ? void 0 : F.row) === i && ((O = this._editingCell) == null ? void 0 : O.col) === r, x = this._tableData.useFirstRowAsHeader && i === 0, C = this._tableData.useFirstColumnAsHeader && r === 0, D = s.type === "Th", c = x ? "col" : C ? "row" : void 0, u = `cell ${D ? "header-cell" : ""} ${_ ? "editing" : ""}`, $ = a ? d && !_ ? 0 : -1 : void 0, R = a ? _ ? h`
+                    <div class="cell-rte-wrapper">
+                      ${this._rteReady ? p : h`
+                        <div class="cell-content" .innerHTML=${s.value || ""}></div>
+                      `}
+                      <umbhost-table-cell-tiptap-editor
+                        class=${this._rteReady ? "" : "rte-loading"}
+                        .value=${s.value ?? ""}
+                        .config=${this.config}
+                        .clickOrigin=${{ x: this._pendingClickX, y: this._pendingClickY }}
+                        @rte-value-change=${(n) => this._updateCellValue(i, r, n.detail)}
+                        @rte-editor-ready=${() => this._handleRteEditorReady()}>
+                      </umbhost-table-cell-tiptap-editor>
+                    </div>
+                  ` : h`
+                    <div class="cell-content" .innerHTML=${s.value || ""}></div>
+                  ` : h`
+                    <textarea
+                      class="cell-textarea"
+                      tabindex=${d ? "0" : "-1"}
+                      aria-label="Row ${i + 1}, column ${r + 1}"
+                      ?disabled=${this.readonly}
+                      rows="1"
+                      @focus=${() => this._handleTextareaFocus(i, r)}
+                      @blur=${(n) => this._handleTextareaBlur(n, i, r)}
+                      @input=${this._handleTextareaInput}
+                      @keydown=${(n) => this._handleTextareaKeydown(n, i, r)}
+                      @contextmenu=${(n) => this._handleContextMenu(n, i, r)}>
+                    </textarea>
+                  `;
+      return D ? h`
+                    <th class=${u}
+                        data-row="${i}" data-col="${r}"
+                        scope=${E(c)}
+                        tabindex=${E($)}
+                        @mousedown=${a ? (n) => {
+        this._pendingClickX = n.clientX, this._pendingClickY = n.clientY;
+      } : p}
+                        @focus=${a ? () => this._handleRteCellFocus(i, r) : p}
+                        @contextmenu=${(n) => this._handleContextMenu(n, i, r)}
+                        @keydown=${a ? (n) => this._handleRteCellKeydown(n, i, r) : p}>
+                      ${R}
+                    </th>
+                  ` : h`
+                    <td class=${u}
+                        data-row="${i}" data-col="${r}"
+                        tabindex=${E($)}
+                        @mousedown=${a ? (n) => {
+        this._pendingClickX = n.clientX, this._pendingClickY = n.clientY;
+      } : p}
+                        @focus=${a ? () => this._handleRteCellFocus(i, r) : p}
+                        @contextmenu=${(n) => this._handleContextMenu(n, i, r)}
+                        @keydown=${a ? (n) => this._handleRteCellKeydown(n, i, r) : p}>
+                      ${R}
+                    </td>
+                  `;
     })}
               </tr>
             `)}
@@ -655,204 +517,335 @@ let u = class extends R(x) {
     `;
   }
 };
-u.styles = y`
+g.styles = z`
     :host { display: block; font-family: var(--uui-font-family, inherit); }
+
     .table-editor { display: flex; flex-direction: column; gap: 12px; position: relative; }
-    
-    .toolbar { 
-        position: sticky; 
-        top: 0; 
-        z-index: 10; 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        flex-wrap: wrap; 
-        gap: 12px; 
-        padding: 8px 12px; 
-        background: var(--uui-color-surface-alt, #f3f3f5); 
-        border-radius: var(--uui-border-radius, 3px); 
-        border-bottom: 1px solid var(--uui-color-border, #d8d7d9);
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 8px 12px;
+      background: var(--uui-color-surface-alt, #f3f3f5);
+      border-radius: var(--uui-border-radius, 3px);
+      border-bottom: 1px solid var(--uui-color-border, #d8d7d9);
     }
     .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 12px; }
 
-    /* Rich Text Toolbar Styles */
-    .formatting-toolbar { 
-      position: absolute; 
-      z-index: 50;
-      display: flex; align-items: center; gap: 4px; padding: 6px 10px; 
-      background: var(--uui-color-surface, #fff); 
-      border: 1px solid var(--uui-color-border, #d8d7d9); 
-      border-radius: var(--uui-border-radius, 3px);
-      box-shadow: var(--uui-shadow-depth-3, 0 4px 12px rgba(0,0,0,0.15));
-      width: fit-content; 
-    }
-    .format-group { display: flex; gap: 2px; }
-    .format-divider { width: 1px; height: 24px; background: var(--uui-color-border, #d8d7d9); margin: 0 6px; }
-    .format-btn { 
-      display: flex; align-items: center; justify-content: center; 
-      width: 32px; height: 32px; padding: 0; 
-      background: transparent; border: 1px solid transparent; 
-      border-radius: var(--uui-border-radius, 3px); 
-      cursor: pointer; font-size: 14px; color: var(--uui-color-text, #1b264f);
-    }
-    .format-btn:hover { background: var(--uui-color-surface-alt, #f3f3f5); border-color: var(--uui-color-border, #d8d7d9); }
-    .format-btn:active { background: var(--uui-color-border, #d8d7d9); }
-    .format-btn.active { background: var(--uui-color-surface-emphasis, #f9f9fb); border-color: var(--uui-color-focus, #3544b1); }
-    
-    .table-container { overflow-x: auto; }
+    .table-container { overflow-x: auto; overflow-y: hidden; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    
-    .cell { border: 1px solid var(--uui-color-border, #d8d7d9); padding: 0; vertical-align: top; min-width: 150px; background: var(--uui-color-surface, #fff); }
+
+    .cell {
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      padding: 0;
+      vertical-align: top;
+      min-width: 150px;
+      background: var(--uui-color-surface, #fff);
+      font-weight: normal;
+      height: 1px; /* enables height:100% on children — table still expands to content */
+    }
     .cell.header-cell { background: var(--uui-color-surface-alt, #f3f3f5); font-weight: 600; }
-    .cell.editing { outline: 2px solid var(--uui-color-focus, #3544b1); outline-offset: -2px; z-index: 5; position: relative; }
-    
-    .cell-content { min-height: 40px; padding: 8px 12px; outline: none; display: block; word-break: break-word; }
-    .cell-content:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
-    .cell-content[contenteditable="false"] { cursor: pointer; }
+    .cell.editing     { outline: 2px solid var(--uui-color-focus, #3544b1); outline-offset: -2px; z-index: 5; position: relative; }
+    .cell:focus-visible { outline: 2px solid var(--uui-color-focus, #3544b1); outline-offset: -2px; z-index: 5; position: relative; }
+
+    .cell-content,
+    .cell-textarea {
+      padding: calc(1rem + 1px);
+      box-sizing: border-box;
+      display: block;
+      width: 100%;
+      word-break: break-word;
+    }
+
+    .cell-content  { min-height: 69px; }
+    .cell-textarea { min-height: 60px; }
+
+    .cell-content {
+      outline: none;
+    }
+    .cell-content p:first-of-type { margin-top: 0; }
     .cell-content a { color: var(--uui-color-interactive, #3544b1); text-decoration: underline; }
-    .cell-content[contenteditable="true"] a { pointer-events: none; cursor: text; }
-    
-    .cell-source-editor { width: 100%; min-height: 100px; border: none; background: #f9f9f9; padding: 8px; font-family: monospace; font-size: 13px; resize: vertical; box-sizing: border-box; outline: none; }
+    .cell:not(.editing) .cell-content a { pointer-events: none; }
 
-    /* Visual feedback for the button class inside the editor */
-    .cell-content a.btn {
-        display: inline-block;
-        padding: 4px 8px;
-        text-decoration: none;
-        border-radius: 4px;
-        font-size: 0.9em;
-        line-height: 1;
-        cursor: pointer;
+    .cell-textarea {
+      border: none;
+      outline: none;
+      resize: none;
+      overflow: hidden; /* height driven by JS auto-resize */
+      background: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      line-height: inherit;
     }
-    .cell-content a.btn-primary {
-        background-color: #007bff; /* Standard Bootstrap Primary Color */
-        color: white !important;   /* Force white text over blue */
-        border: 1px solid #007bff;
+    .cell-textarea:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
+
+    .cell-rte-wrapper { position: relative; min-height: 69px; height: 100%; }
+
+    umbhost-table-cell-tiptap-editor { display: block; height: 100%; }
+
+    umbhost-table-cell-tiptap-editor.rte-loading {
+      visibility: hidden;
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
     }
 
-    /* Drag Handles */
-    .handle-cell { 
-        width: 30px; 
-        min-width: 30px; 
-        max-width: 30px; 
-        background: var(--uui-color-surface-alt, #f3f3f5); 
-        border: 1px solid var(--uui-color-border, #d8d7d9); 
-        vertical-align: middle; 
-        text-align: center; 
-        cursor: grab; 
-        transition: background-color 0.1s ease-in-out;
+    /* Drag handles */
+    .handle-cell {
+      width: 30px; min-width: 30px; max-width: 30px;
+      background: var(--uui-color-surface-alt, #f3f3f5);
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      vertical-align: middle;
+      text-align: center;
+      cursor: grab;
+      transition: background-color 0.1s;
     }
-    
     .col-handle-cell {
-        height: 24px;
-        background: var(--uui-color-surface-alt, #f3f3f5);
-        border: 1px solid var(--uui-color-border, #d8d7d9);
-        text-align: center;
-        vertical-align: middle;
-        cursor: grab;
+      height: 24px;
+      background: var(--uui-color-surface-alt, #f3f3f5);
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      text-align: center;
+      vertical-align: middle;
+      cursor: grab;
     }
-    
     .corner-cell {
-        background: var(--uui-color-surface-alt, #f3f3f5);
-        border: none;
-        width: 30px;
-        max-width: 30px;
-        min-width: 30px;
+      background: var(--uui-color-surface-alt, #f3f3f5);
+      border: none;
+      width: 30px; min-width: 30px; max-width: 30px;
     }
+    .row-drag-handle, .col-drag-handle {
+      color: var(--uui-color-text-alt, #a1a1a1);
+      font-weight: bold;
+      user-select: none;
+    }
+    .handle-cell:hover .row-drag-handle,
+    .col-handle-cell:hover .col-drag-handle { color: var(--uui-color-text, #000); }
 
-    .row-drag-handle, .col-drag-handle { 
-        color: var(--uui-color-text-alt, #a1a1a1); 
-        font-weight: bold; 
-        user-select: none; 
-    }
-    
-    .handle-cell:hover .row-drag-handle, 
-    .col-handle-cell:hover .col-drag-handle { 
-        color: var(--uui-color-text, #000); 
-    }
-    
-    .dragging { opacity: 0.5; background: var(--uui-color-surface-emphasis, #f9f9fb); }
+    /* Disable pointer events on interactive cell content during drag so drag events reach <tr>. */
+    .is-dragging .cell-textarea,
+    .is-dragging .cell-content,
+    .is-dragging umbhost-table-cell-tiptap-editor { pointer-events: none; }
+
+    .dragging { opacity: 0.5; }
     tr.dragging td { background: var(--uui-color-surface-emphasis, #f9f9fb); }
+    tr:not(.dragging):hover td.cell:not(.editing),
+    tr:not(.dragging):hover th.cell:not(.editing) { background-color: var(--uui-color-surface-emphasis, #f9f9fb); }
+    tr:not(.dragging):hover td.handle-cell        { background-color: var(--uui-color-surface-emphasis, #f9f9fb); }
 
-    tr:not(.dragging):hover td.cell:not(.editing) {
-       background-color: var(--uui-color-surface-emphasis, #f9f9fb);
-    }
-    tr:not(.dragging):hover td.handle-cell {
-        background-color: var(--uui-color-surface-emphasis, #f9f9fb);
-    }
-
-    /* --- Context Menu Styles --- */
+    /* Context menu */
     .context-menu {
-        position: fixed;
-        z-index: 9999;
-        background: var(--uui-color-surface, #fff);
-        border: 1px solid var(--uui-color-border, #d8d7d9);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border-radius: 4px;
-        padding: 4px 0;
-        min-width: 160px;
-        font-size: 14px;
-        color: var(--uui-color-text, #000);
+      position: fixed;
+      z-index: 9999;
+      background: var(--uui-color-surface, #fff);
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      padding: 4px 0;
+      min-width: 160px;
+      font-size: 14px;
+      color: var(--uui-color-text, #000);
     }
-    
     .menu-item {
-        padding: 8px 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        transition: background-color 0.1s;
+      padding: 8px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.1s;
     }
-    
-    .menu-item:hover {
-        background: var(--uui-color-surface-emphasis, #f9f9fb);
-    }
-
-    .menu-item.danger {
-        color: var(--uui-color-danger, #d42054);
-    }
-    
-    .menu-item.danger:hover {
-        background: var(--uui-color-danger, #d42054);
-        color: #ffffff;
-    }
-
-    .menu-divider {
-        height: 1px;
-        background: var(--uui-color-border, #e9e9eb);
-        margin: 4px 0;
-    }
+    .menu-item:hover  { background: var(--uui-color-surface-emphasis, #f9f9fb); }
+    .menu-item.danger { color: var(--uui-color-danger, #d42054); }
+    .menu-item.danger:hover { background: var(--uui-color-danger, #d42054); color: #fff; }
+    .menu-divider { height: 1px; background: var(--uui-color-border, #e9e9eb); margin: 4px 0; }
   `;
 f([
-  v({ attribute: !1 })
-], u.prototype, "value", 2);
+  y({ attribute: !1 })
+], g.prototype, "value", 2);
 f([
-  v({ type: Object, attribute: !1 })
-], u.prototype, "config", 2);
+  y({ type: Object, attribute: !1 })
+], g.prototype, "config", 2);
 f([
-  v({ type: Boolean, attribute: "readonly" })
-], u.prototype, "readonly", 2);
+  y({ type: Boolean, attribute: "readonly" })
+], g.prototype, "readonly", 2);
 f([
-  p()
-], u.prototype, "_tableData", 2);
+  m()
+], g.prototype, "_tableData", 2);
 f([
-  p()
-], u.prototype, "_editingCell", 2);
+  m()
+], g.prototype, "_activeCell", 2);
 f([
-  p()
-], u.prototype, "_draggedRowIndex", 2);
+  m()
+], g.prototype, "_editingCell", 2);
 f([
-  p()
-], u.prototype, "_draggedColIndex", 2);
+  m()
+], g.prototype, "_rteReady", 2);
 f([
-  p()
-], u.prototype, "_contextMenu", 2);
+  m()
+], g.prototype, "_draggedRowIndex", 2);
 f([
-  p()
-], u.prototype, "_toolbarPosition", 2);
+  m()
+], g.prototype, "_draggedColIndex", 2);
 f([
-  p()
-], u.prototype, "_viewSourceMode", 2);
-u = f([
-  D("umbhost-table-property-editor")
-], u);
+  m()
+], g.prototype, "_isDragging", 2);
+f([
+  m()
+], g.prototype, "_contextMenu", 2);
+g = f([
+  H("umbhost-table-property-editor")
+], g);
+var G = Object.defineProperty, Q = Object.getOwnPropertyDescriptor, U = (e) => {
+  throw TypeError(e);
+}, w = (e, t, a, l) => {
+  for (var o = l > 1 ? void 0 : l ? Q(t, a) : t, i = e.length - 1, s; i >= 0; i--)
+    (s = e[i]) && (o = (l ? s(t, a, o) : s(o)) || o);
+  return l && o && G(t, a, o), o;
+}, L = (e, t, a) => t.has(e) || U("Cannot " + a), P = (e, t, a) => (L(e, t, "read from private field"), a ? a.call(e) : t.get(e)), q = (e, t, a) => t.has(e) ? U("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, a), X = (e, t, a) => (L(e, t, "access private method"), a), T, M, k;
+const Z = new N("UmbTiptapRteContext");
+let ee = 0, B = class extends V(A) {
+  constructor() {
+    super(...arguments), q(this, T);
+  }
+  connectedCallback() {
+    super.connectedCallback(), this.consumeContext(Z, (e) => {
+      e && X(this, T, M).call(this, e);
+    });
+  }
+  render() {
+    return p;
+  }
+};
+T = /* @__PURE__ */ new WeakSet();
+M = function(e, t = 0) {
+  if (!this.isConnected || t > 100) return;
+  const a = e.getEditor();
+  a ? this.dispatchEvent(new CustomEvent("tiptap-editor-ready", { detail: a, bubbles: !0, composed: !0 })) : requestAnimationFrame(() => X(this, T, M).call(this, e, t + 1));
+};
+B = w([
+  H("umbhost-tiptap-editor-bridge")
+], B);
+let v = class extends V(A) {
+  constructor() {
+    super(...arguments), this.value = "", this.readonly = !1, q(this, k, `umbhost-toolbar-${ee++}`);
+  }
+  _buildConfigWithoutToolbar() {
+    var e, t, a, l;
+    return this._configCache ?? (this._configCache = new Y([
+      { alias: "extensions", value: (e = this.config) == null ? void 0 : e.getValueByAlias("extensions") },
+      { alias: "toolbar", value: [[[]]] },
+      { alias: "statusbar", value: (t = this.config) == null ? void 0 : t.getValueByAlias("statusbar") },
+      { alias: "stylesheets", value: (a = this.config) == null ? void 0 : a.getValueByAlias("stylesheets") },
+      { alias: "maxImageSize", value: ((l = this.config) == null ? void 0 : l.getValueByAlias("maxImageSize")) ?? 500 },
+      { alias: "overlaySize", value: "medium" }
+    ]));
+  }
+  get _toolbarValue() {
+    var e;
+    return ((e = this.config) == null ? void 0 : e.getValueByAlias("toolbar")) ?? [[[]]];
+  }
+  _handleChange(e) {
+    const t = e.target;
+    this.value = t.value, this.dispatchEvent(new CustomEvent("rte-value-change", { detail: this.value, bubbles: !0, composed: !0 }));
+  }
+  _onEditorReady(e) {
+    if (!this._editor) {
+      this._editor = e.detail;
+      const t = this.clickOrigin;
+      this.dispatchEvent(new CustomEvent("rte-editor-ready", { bubbles: !0, composed: !0 })), requestAnimationFrame(() => {
+        if (this._editor) {
+          if (t) {
+            const a = this._editor.view.posAtCoords({ left: t.x, top: t.y });
+            this._editor.commands.focus(a ? a.pos : "start");
+          } else
+            this._editor.commands.focus();
+          this.updateComplete.then(() => {
+            var a;
+            return (a = this._popoverContainer) == null ? void 0 : a.showPopover();
+          });
+        }
+      });
+    }
+  }
+  disconnectedCallback() {
+    var e;
+    super.disconnectedCallback();
+    try {
+      (e = this._popoverContainer) == null || e.hidePopover();
+    } catch {
+    }
+  }
+  updated(e) {
+    super.updated(e), e.has("config") && (this._configCache = void 0);
+  }
+  render() {
+    const e = !this.readonly && this._toolbarValue.flat(2).length > 0;
+    return h`
+      ${e ? h`
+        <span class="toolbar-anchor" popovertarget=${P(this, k)}></span>
+        <uui-popover-container id=${P(this, k)} placement="top-start" popover="manual">
+          ${this._editor ? h`
+            <umb-tiptap-toolbar
+              .toolbar=${this._toolbarValue}
+              .editor=${this._editor}
+              .configuration=${this.config}>
+            </umb-tiptap-toolbar>
+          ` : p}
+        </uui-popover-container>
+      ` : p}
+      <umb-input-tiptap
+        .value=${this.value}
+        .configuration=${this._buildConfigWithoutToolbar()}
+        ?readonly=${this.readonly}
+        @change=${this._handleChange}
+        @tiptap-editor-ready=${this._onEditorReady}>
+        <umbhost-tiptap-editor-bridge></umbhost-tiptap-editor-bridge>
+      </umb-input-tiptap>
+    `;
+  }
+};
+k = /* @__PURE__ */ new WeakMap();
+v.styles = z`
+    :host { display: block; height: 100%; }
+
+    .toolbar-anchor {
+      display: block;
+      width: 100%;
+      height: 0;
+      pointer-events: none;
+    }
+
+    umb-input-tiptap {
+      --uui-input-border-color: transparent;
+      --umb-rte-min-height: 69px;
+      display: block;
+      height: 100%;
+    }
+  `;
+w([
+  y({ attribute: !1 })
+], v.prototype, "value", 2);
+w([
+  y({ type: Object, attribute: !1 })
+], v.prototype, "config", 2);
+w([
+  y({ type: Boolean })
+], v.prototype, "readonly", 2);
+w([
+  y({ attribute: !1 })
+], v.prototype, "clickOrigin", 2);
+w([
+  m()
+], v.prototype, "_editor", 2);
+w([
+  K("uui-popover-container")
+], v.prototype, "_popoverContainer", 2);
+v = w([
+  H("umbhost-table-cell-tiptap-editor")
+], v);
 //# sourceMappingURL=umbhost-tables.js.map
