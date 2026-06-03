@@ -9,9 +9,9 @@ namespace UmbHost.Tables.PropertyEditors
 {
     public class TablePropertyIndexValueFactory : IPropertyIndexValueFactory
     {
-        private readonly ILogger<TablePropertyEditor> _logger;
+        private readonly ILogger<TablePropertyIndexValueFactory> _logger;
 
-        public TablePropertyIndexValueFactory(ILogger<TablePropertyEditor> logger)
+        public TablePropertyIndexValueFactory(ILogger<TablePropertyIndexValueFactory> logger)
         {
             _logger = logger;
         }
