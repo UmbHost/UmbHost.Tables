@@ -11,21 +11,24 @@ namespace UmbHost.Tables.PropertyEditors;
 public class TablePropertyEditor : DataEditor
 {
     private readonly IIOHelper _ioHelper;
+    private readonly TablePropertyIndexValueFactory _propertyIndexValueFactory;
 
     public TablePropertyEditor(
         IDataValueEditorFactory dataValueEditorFactory,
-        IIOHelper ioHelper)
+        IIOHelper ioHelper,
+        TablePropertyIndexValueFactory propertyIndexValueFactory)
         : base(dataValueEditorFactory)
     {
         _ioHelper = ioHelper;
+        _propertyIndexValueFactory = propertyIndexValueFactory;
         SupportsReadOnly = true;
     }
 
     /// <inheritdoc />
-    protected override IConfigurationEditor CreateConfigurationEditor()
-    {
-        return new TableConfigurationEditor(_ioHelper);
-    }
+    protected override IConfigurationEditor CreateConfigurationEditor() => new TableConfigurationEditor(_ioHelper);
+
+    /// <inheritdoc />
+    public override IPropertyIndexValueFactory PropertyIndexValueFactory =>  _propertyIndexValueFactory;
 }
 
 /// <summary>
