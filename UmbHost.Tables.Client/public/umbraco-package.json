@@ -2,7 +2,7 @@
   "$schema": "../../umbraco-package-schema.json",
   "id": "UmbHost.Tables",
   "name": "UmbHost Tables",
-  "version": "17.0.3",
+  "version": "18.0.0",
   "extensions": [
     {
       "type": "propertyEditorUi",

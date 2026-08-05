@@ -1,6 +1,6 @@
 # UmbHost.Tables
 
-A table property editor for Umbraco 17+ that allows content editors to create and manage tabular data with support for header rows, header columns, and inline editing.
+A table property editor for Umbraco 17 and 18 that allows content editors to create and manage tabular data with support for header rows, header columns, and inline editing.
 
 ## Features
 
@@ -12,6 +12,17 @@ A table property editor for Umbraco 17+ that allows content editors to create an
 - Configurable min/max rows and columns
 - Read-only mode support
 - Built with Lit/Vite/TypeScript following Umbraco 17 patterns
+
+## Version compatibility
+
+The package major tracks the Umbraco major, so pick the line that matches your site:
+
+| Umbraco | UmbHost.Tables | Branch |
+|---------|----------------|--------|
+| 18.x    | 18.x           | `main` |
+| 17.x    | 17.x           | `v17/main` |
+
+Both lines are built from the same source; the 17 line receives fixes by cherry-pick.
 
 ## Installation
 
@@ -25,6 +36,12 @@ Or via the Package Manager Console:
 
 ```powershell
 Install-Package UmbHost.Tables
+```
+
+NuGet resolves the newest version compatible with your Umbraco install. To pin a line explicitly:
+
+```bash
+dotnet add package UmbHost.Tables --version 17.*
 ```
 
 ## Usage
