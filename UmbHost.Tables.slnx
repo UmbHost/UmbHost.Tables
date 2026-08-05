@@ -4,5 +4,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="UmbHost.Tables.Tests/UmbHost.Tables.Tests.csproj" />
   <Project Path="UmbHost.Tables/UmbHost.Tables.csproj" />
 </Solution>

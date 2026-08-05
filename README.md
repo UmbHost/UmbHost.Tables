@@ -89,20 +89,88 @@ Install-Package UmbHost.Tables
 }
 ```
 
-### Using the Helper Method
+### Setup
 
-The `TableModel` includes a helper method for simpler rendering:
+Add these to `Views/_ViewImports.cshtml` once:
 
 ```cshtml
 @using UmbHost.Tables.Models
+@using UmbHost.Tables.Extensions
+@using UmbHost.Tables.Rendering
+@addTagHelper *, UmbHost.Tables
+```
+
+`ToHtmlTable` needs the first two usings, `TableHtmlOptions` needs the third, and the tag helper needs the `addTagHelper` line.
+
+### Using the Tag Helper
+
+```cshtml
 @{
     var table = Model.Value<TableModel>("tableProperty");
 }
 
-@if (table != null)
-{
-    @Html.Raw(table.ToHtmlTable("table table-striped"))
+<umbhost-table table="@table" class="table table-striped" />
+```
+
+`class`, `id`, `data-*` and any other attribute you write are passed straight through to the rendered `<table>`. Inner elements have their own class hooks:
+
+```cshtml
+<umbhost-table table="@table"
+               class="table table-striped"
+               id="prices"
+               data-sortable="true"
+               head-class="thead-dark"
+               body-class="table-group-divider"
+               row-class="align-middle"
+               header-cell-class="fw-bold"
+               cell-class="px-4 py-2" />
+```
+
+Nothing is rendered when the table is null or empty, so no `@if` guard is needed.
+
+### Using the Extension Method
+
+```cshtml
+@{
+    var table = Model.Value<TableModel>("tableProperty");
 }
+
+@table.ToHtmlTable("table table-striped")
+```
+
+For full control, pass `TableHtmlOptions` instead of a class string:
+
+```cshtml
+@table.ToHtmlTable(new TableHtmlOptions
+{
+    Class = "table table-striped",
+    Id = "prices",
+    CellClass = "px-4 py-2",
+    Attributes = new Dictionary<string, string?> { ["data-sortable"] = "true" },
+})
+```
+
+`ToHtmlTable` returns `IHtmlContent`, so `@Html.Raw(table.ToHtmlTable("table"))` also works.
+
+### Generated Markup
+
+Both helpers produce the same markup. Header cells are determined by `cell.Type` **or** the `UseFirstRowAsHeader` / `UseFirstColumnAsHeader` flags, and carry `scope` for screen readers:
+
+```html
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th scope="col">Plan</th>
+      <th scope="col">Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">Starter</th>
+      <td><a href="/pricing/">£10</a></td>
+    </tr>
+  </tbody>
+</table>
 ```
 
 ## Models
@@ -113,7 +181,7 @@ The main model representing the table:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Rows` | `List<TableRow>` | Collection of table rows |
+| `Rows` | `IReadOnlyList<TableRow>` | Collection of table rows |
 | `UseFirstRowAsHeader` | `bool` | Whether the first row should render as `<th>` elements |
 | `UseFirstColumnAsHeader` | `bool` | Whether the first column should render as `<th>` elements |
 | `RowCount` | `int` | Number of rows |
@@ -125,8 +193,8 @@ Represents a single row:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Cells` | `List<TableCell>` | Collection of cells in the row |
-| `HasHeaderCells` | `bool` | Whether any cells are headers |
+| `Cells` | `IReadOnlyList<TableCell>` | Collection of cells in the row |
+| `IsHeaderRow` | `bool` | Whether every cell in the row is a header |
 | `IsEmpty` | `bool` | Whether all cells are empty |
 | `CellCount` | `int` | Number of cells |
 
@@ -138,8 +206,8 @@ Represents a single cell:
 |----------|------|-------------|
 | `Value` | `string` | HTML/text content |
 | `Type` | `TableCellType` | `Td` or `Th` |
-| `ColSpan` | `int` | Column span (for future use) |
-| `RowSpan` | `int` | Row span (for future use) |
+| `ColSpan` | `int` | Column span. Reserved; cell spanning is not implemented, so this is always `1` |
+| `RowSpan` | `int` | Row span. Reserved; cell spanning is not implemented, so this is always `1` |
 | `IsEmpty` | `bool` | Whether cell is empty |
 | `IsHeader` | `bool` | Whether cell is a header |
 
