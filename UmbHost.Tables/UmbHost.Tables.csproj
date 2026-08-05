@@ -9,7 +9,7 @@
     <!-- Package Info -->
     <PackageId>UmbHost.Tables</PackageId>
     <!-- Fallback for untagged builds; the Release workflow overrides this from the git tag. -->
-    <Version>17.2.0</Version>
+    <Version>17.3.0</Version>
     <Authors>UmbHost</Authors>
     <Company>UmbHost</Company>
     <Description>A table property editor for Umbraco 17 that allows content editors to create and manage tabular data with support for header rows/columns and rich text editing.</Description>
