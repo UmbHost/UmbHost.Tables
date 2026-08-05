@@ -1,5 +1,6 @@
 using UmbHost.Tables.Models;
 using Umbraco.Cms.Core.IO;
+using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.PropertyEditors;
 
 namespace UmbHost.Tables.PropertyEditors;
@@ -23,6 +24,10 @@ public class TablePropertyEditor : DataEditor
         _propertyIndexValueFactory = propertyIndexValueFactory;
         SupportsReadOnly = true;
     }
+
+    /// <inheritdoc />
+    protected override IDataValueEditor CreateValueEditor() =>
+        DataValueEditorFactory.Create<TablePropertyValueEditor>(Attribute!);
 
     /// <inheritdoc />
     protected override IConfigurationEditor CreateConfigurationEditor() => new TableConfigurationEditor(_ioHelper);
