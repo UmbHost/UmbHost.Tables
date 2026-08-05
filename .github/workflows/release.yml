@@ -32,8 +32,8 @@ jobs:
         run: npm ci
         working-directory: UmbHost.Tables.Client
 
-      # Built fresh from source so a release can never ship stale JavaScript, whatever
-      # happens to be committed. CI is where the committed copy is policed.
+      # Built from source so a release can never ship stale JavaScript, whatever the
+      # committed wwwroot happens to contain.
       - name: Build client
         run: npm run build
         working-directory: UmbHost.Tables.Client
