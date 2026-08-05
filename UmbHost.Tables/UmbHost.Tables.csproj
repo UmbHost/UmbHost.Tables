@@ -45,4 +45,8 @@
     <PackageReference Include="Umbraco.Cms.Core" Version="17.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="UmbHost.Tables.Tests" />
+  </ItemGroup>
+
 </Project>
