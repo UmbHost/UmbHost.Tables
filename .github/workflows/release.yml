@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Required for NuGet trusted publishing: lets the runner mint an OIDC token
+      # that nuget.org exchanges for a short-lived API key. No secret is stored.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: UmbHost.Tables.Client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: UmbHost.Tables.Client
+
+      # Built fresh from source so a release can never ship stale JavaScript, whatever
+      # happens to be committed. CI is where the committed copy is policed.
+      - name: Build client
+        run: npm run build
+        working-directory: UmbHost.Tables.Client
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Tags are v<major>.<minor>.<patch>, where major tracks the Umbraco major,
+      # for example v17.2.0. On workflow_dispatch there is no tag, so the version
+      # falls back to whatever the csproj declares.
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARGS=""
+          [ -n "$VERSION" ] && ARGS="-p:Version=$VERSION"
+          dotnet build --configuration Release --no-restore $ARGS
+
+      - name: Test
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARGS=""
+          [ -n "$VERSION" ] && ARGS="-p:Version=$VERSION"
+          dotnet test --configuration Release --no-build --verbosity normal $ARGS
+
+      - name: Pack
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARGS=""
+          [ -n "$VERSION" ] && ARGS="-p:Version=$VERSION"
+          dotnet pack UmbHost.Tables/UmbHost.Tables.csproj --configuration Release --no-build --output artifacts $ARGS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*
+
+      # Exchanges the workflow's OIDC token for a short-lived nuget.org API key.
+      # Requires a trusted publishing policy on nuget.org for this repository, and
+      # a NUGET_USER repository variable holding the nuget.org account name.
+      - name: NuGet login
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push to NuGet
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
