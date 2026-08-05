@@ -49,7 +49,9 @@ internal static class TableHtmlRenderer
 
         tableTag.InnerHtml.AppendHtml(RenderRows(table, options));
 
-        return tableTag;
+        // Wrapped so ToString() yields markup: Razor's Html.Raw(object) calls ToString(), and
+        // TagBuilder does not override it.
+        return new TableHtmlContent(tableTag);
     }
 
     /// <summary>
