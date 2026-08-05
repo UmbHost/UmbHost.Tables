@@ -155,6 +155,9 @@ public class TableHtmlOptions
     public string? HeaderCellClass { get; set; }  // <th>
     public string? CellClass { get; set; }        // <td>
     public IDictionary<string, string?>? Attributes { get; set; }  // extra <table> attrs
+
+    // Keeps ToHtmlTable("table table-striped") binding to the single method overload
+    public static implicit operator TableHtmlOptions(string? cssClass) => new() { Class = cssClass };
 }
 ```
 
@@ -173,24 +176,38 @@ developer-authored, not user input.
 
 ```csharp
 // UmbHost.Tables.Extensions
-public static IHtmlContent ToHtmlTable(this TableModel? table, string? cssClass = null);
-public static IHtmlContent ToHtmlTable(this TableModel? table, TableHtmlOptions options);
+public static IHtmlContent ToHtmlTable(this TableModel? table, TableHtmlOptions? options = null);
 ```
 
-Returns `IHtmlContent` rather than `string` so both call styles work:
+A single method, not an overload pair. `TableHtmlOptions` declares an implicit
+conversion from `string`, so the documented call site still binds:
+
+```csharp
+// UmbHost.Tables.Rendering
+public static implicit operator TableHtmlOptions(string? cssClass) => new() { Class = cssClass };
+```
+
+This is deliberate: two overloads — one taking `string?`, one taking
+`TableHtmlOptions` — would both accept a bare `null` literal, making
+`table.ToHtmlTable(null)` an ambiguous-call compile error. One method with a
+conversion has no such hole. Every call style resolves unambiguously:
 
 ```razor
-@Html.Raw(table.ToHtmlTable("table table-striped"))   @* as documented today *@
-@table.ToHtmlTable("table table-striped")             @* cleaner, also correct *@
+@Html.Raw(table.ToHtmlTable("table table-striped"))       @* as documented today *@
+@table.ToHtmlTable("table table-striped")                 @* cleaner, also correct *@
+@table.ToHtmlTable(new TableHtmlOptions { Class = "t" })  @* full control *@
+@table.ToHtmlTable()                                      @* no attributes *@
+@table.ToHtmlTable(null)                                  @* same as above *@
 ```
 
+Returns `IHtmlContent` rather than `string` so both of the first two forms work.
 `Html.Raw(object)` calls `ToString()`, which `HtmlString` round-trips unchanged, so
 every snippet already copied out of the README keeps working. Returning `string` would
-have made the second form silently HTML-encode the whole table.
+have made the bare `@table.ToHtmlTable(...)` form silently HTML-encode the whole table.
 
-**Known wart:** `table.ToHtmlTable(null)` is ambiguous between the two overloads. This
-is a compile error rather than a silent bug, and `table.ToHtmlTable()` works fine.
-Callers who need it can write `ToHtmlTable((string?)null)`.
+The conversion is narrow and unsurprising — a bare string in this position can only
+mean the table's CSS class — and it exists to serve exactly one goal: keeping the call
+site issue #2 asks for, without a second overload.
 
 ### Tag helper
 
@@ -239,7 +256,7 @@ dependency-free.
 | File | Covers |
 |---|---|
 | `TableHtmlRendererTests.cs` | Union header rule (each of the three triggers independently, and drift cases where `Type` and flags disagree); scope selection including the `(0,0)` corner; `thead`/`tbody` grouping; `colspan`/`rowspan` emitted only when `> 1`; null, empty, cell-less and ragged rows; per-element class hooks; attribute encoding; raw cell HTML passthrough |
-| `TableModelExtensionsTests.cs` | Both overloads; `IHtmlContent` renders identically with and without `Html.Raw`; null model |
+| `TableModelExtensionsTests.cs` | All five call styles above resolve and render correctly, including the bare `null` that the old overload pair would have rejected; the implicit `string` conversion maps to `Class`; `IHtmlContent` renders identically with and without `Html.Raw`; null model |
 | `UmbHostTableTagHelperTests.cs` | Attribute passthrough onto `<table>`; `*-class` attributes consumed not emitted; `SuppressOutput` on null and empty |
 
 Assertions compare rendered HTML strings, obtained by writing the `IHtmlContent` to a
