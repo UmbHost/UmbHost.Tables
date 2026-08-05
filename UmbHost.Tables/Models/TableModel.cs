@@ -66,9 +66,9 @@ public class TableModel
     /// Gets the body rows (excluding header row if UseFirstRowAsHeader is true).
     /// </summary>
     [JsonIgnore]
-    public IReadOnlyList<TableRow> BodyRows => 
-        UseFirstRowAsHeader && Rows.Count > 1 
-            ? Rows.Skip(1).ToList() 
+    public IReadOnlyList<TableRow> BodyRows =>
+        UseFirstRowAsHeader
+            ? Rows.Skip(1).ToList()
             : Rows.ToList();
 
     /// <summary>

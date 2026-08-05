@@ -190,10 +190,8 @@ The main model representing the table:
 | `IsEmpty` | `bool` | Inverse of `HasContent` |
 | `Cells` | `IReadOnlyList<IReadOnlyList<TableCell>>` | The rows projected to a two-dimensional list of cells |
 | `HeaderRow` | `TableRow?` | The first row when `UseFirstRowAsHeader` is `true`, otherwise `null` |
-| `BodyRows` | `IReadOnlyList<TableRow>` | The rows excluding the header row — see the note below |
+| `BodyRows` | `IReadOnlyList<TableRow>` | The rows excluding the header row when `UseFirstRowAsHeader` is `true`, otherwise every row |
 | `HeaderColumn` | `IReadOnlyList<TableCell>` | The first cell of every row when `UseFirstColumnAsHeader` is `true`, otherwise empty |
-
-> **Note on `BodyRows`:** the header row is only skipped when the table has more than one row. A single-row table with `UseFirstRowAsHeader` enabled returns that row from both `HeaderRow` and `BodyRows`, so rendering both would output it twice. The tag helper and `ToHtmlTable` are unaffected — they do not use `BodyRows`.
 
 Methods:
 
