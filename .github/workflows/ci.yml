@@ -3,10 +3,12 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - main       # Umbraco 18 line
+      - v17/main   # Umbraco 17 maintenance line
   pull_request:
     branches:
       - main
+      - v17/main
 
 permissions:
   contents: read
