@@ -165,4 +165,88 @@ public class TableHtmlRendererTests
 
         Assert.Equal("<tbody><tr><td>a</td></tr></tbody>", RenderRows(table, options));
     }
+
+    private static string RenderTable(TableModel? table, TableHtmlOptions? options = null)
+        => TestTable.Render(TableHtmlRenderer.RenderTable(table, options));
+
+    [Fact]
+    public void Render_table_wraps_rows_in_table_element()
+    {
+        var table = TestTable.Create([["a"]]);
+
+        Assert.Equal("<table><tbody><tr><td>a</td></tr></tbody></table>", RenderTable(table));
+    }
+
+    [Fact]
+    public void Render_table_returns_empty_for_null_model()
+    {
+        Assert.Equal(string.Empty, RenderTable(null));
+    }
+
+    [Fact]
+    public void Render_table_returns_empty_for_model_with_no_rows()
+    {
+        Assert.Equal(string.Empty, RenderTable(new TableModel()));
+    }
+
+    [Fact]
+    public void Render_table_applies_class_and_id()
+    {
+        var table = TestTable.Create([["a"]]);
+        var options = new TableHtmlOptions { Class = "table table-striped", Id = "prices" };
+
+        var html = RenderTable(table, options);
+
+        // Two attributes on one element, so assert fragments.
+        Assert.Contains("class=\"table table-striped\"", html);
+        Assert.Contains("id=\"prices\"", html);
+    }
+
+    [Fact]
+    public void Render_table_applies_arbitrary_attributes()
+    {
+        var table = TestTable.Create([["a"]]);
+        var options = new TableHtmlOptions
+        {
+            Attributes = new Dictionary<string, string?> { ["data-sortable"] = "true" },
+        };
+
+        Assert.Contains("data-sortable=\"true\"", RenderTable(table, options));
+    }
+
+    [Fact]
+    public void Render_table_lets_class_property_win_over_attributes_dictionary()
+    {
+        var table = TestTable.Create([["a"]]);
+        var options = new TableHtmlOptions
+        {
+            Class = "wins",
+            Attributes = new Dictionary<string, string?> { ["class"] = "loses" },
+        };
+
+        var html = RenderTable(table, options);
+
+        Assert.Contains("class=\"wins\"", html);
+        Assert.DoesNotContain("loses", html);
+    }
+
+    [Fact]
+    public void Render_table_encodes_attribute_values()
+    {
+        var table = TestTable.Create([["a"]]);
+        var options = new TableHtmlOptions { Class = "a\"><script>alert(1)</script>" };
+
+        var html = RenderTable(table, options);
+
+        Assert.DoesNotContain("<script>", html);
+        Assert.Contains("&lt;script&gt;", html);
+    }
+
+    [Fact]
+    public void Render_table_treats_null_options_as_empty()
+    {
+        var table = TestTable.Create([["a"]]);
+
+        Assert.Equal("<table><tbody><tr><td>a</td></tr></tbody></table>", RenderTable(table, null));
+    }
 }

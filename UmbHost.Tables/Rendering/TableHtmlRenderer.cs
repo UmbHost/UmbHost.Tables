@@ -12,6 +12,47 @@ namespace UmbHost.Tables.Rendering;
 internal static class TableHtmlRenderer
 {
     /// <summary>
+    /// Renders a complete table element. Returns empty content for a null or row-less model,
+    /// so callers do not need a null guard around the call.
+    /// </summary>
+    public static IHtmlContent RenderTable(TableModel? table, TableHtmlOptions? options)
+    {
+        if (table is null || table.Rows.Count == 0)
+        {
+            return HtmlString.Empty;
+        }
+
+        options ??= new TableHtmlOptions();
+
+        var tableTag = new TagBuilder("table");
+
+        // Applied first so the strongly typed Class and Id below win on conflict.
+        if (options.Attributes is not null)
+        {
+            foreach (var attribute in options.Attributes)
+            {
+                tableTag.Attributes[attribute.Key] = attribute.Value ?? string.Empty;
+            }
+        }
+
+        // Direct assignment rather than AddCssClass: AddCssClass merges, which would let a
+        // dictionary-supplied class survive alongside Class instead of being replaced by it.
+        if (!string.IsNullOrWhiteSpace(options.Class))
+        {
+            tableTag.Attributes["class"] = options.Class;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.Id))
+        {
+            tableTag.Attributes["id"] = options.Id;
+        }
+
+        tableTag.InnerHtml.AppendHtml(RenderRows(table, options));
+
+        return tableTag;
+    }
+
+    /// <summary>
     /// Renders the thead and tbody groups without a wrapping table element, so callers that
     /// own the table element (the tag helper) can let MVC merge attributes onto it.
     /// </summary>
