@@ -8,6 +8,7 @@
     
     <!-- Package Info -->
     <PackageId>UmbHost.Tables</PackageId>
+    <!-- Fallback for untagged builds; the Release workflow overrides this from the git tag. -->
     <Version>17.2.0</Version>
     <Authors>UmbHost</Authors>
     <Company>UmbHost</Company>
@@ -36,6 +37,15 @@
       <PackagePath>\</PackagePath>
     </None>
     <None Include="..\table.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <!-- Picked up by the Umbraco Marketplace when the package is indexed. -->
+    <None Include="..\umbraco-marketplace.json">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
