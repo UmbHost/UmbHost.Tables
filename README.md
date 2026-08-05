@@ -186,6 +186,20 @@ The main model representing the table:
 | `UseFirstColumnAsHeader` | `bool` | Whether the first column should render as `<th>` elements |
 | `RowCount` | `int` | Number of rows |
 | `ColumnCount` | `int` | Number of columns (from first row) |
+| `HasContent` | `bool` | Whether the table has at least one row containing a non-empty cell |
+| `IsEmpty` | `bool` | Inverse of `HasContent` |
+| `Cells` | `IReadOnlyList<IReadOnlyList<TableCell>>` | The rows projected to a two-dimensional list of cells |
+| `HeaderRow` | `TableRow?` | The first row when `UseFirstRowAsHeader` is `true`, otherwise `null` |
+| `BodyRows` | `IReadOnlyList<TableRow>` | The rows excluding the header row when `UseFirstRowAsHeader` is `true`, otherwise every row |
+| `HeaderColumn` | `IReadOnlyList<TableCell>` | The first cell of every row when `UseFirstColumnAsHeader` is `true`, otherwise empty |
+
+Methods:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GetCell(int rowIndex, int columnIndex)` | `TableCell?` | The cell at the given position, or `null` if either index is out of bounds |
+| `GetRow(int index)` | `TableRow?` | The row at the given index, or `null` if out of bounds |
+| `GetColumn(int columnIndex)` | `IReadOnlyList<TableCell>` | Every cell in the column, skipping rows that have too few cells |
 
 ### TableRow
 
@@ -210,6 +224,7 @@ Represents a single cell:
 | `RowSpan` | `int` | Row span. Reserved; cell spanning is not implemented, so this is always `1` |
 | `IsEmpty` | `bool` | Whether cell is empty |
 | `IsHeader` | `bool` | Whether cell is a header |
+| `IsSpanned` | `bool` | Whether the cell spans multiple rows or columns. Always `false` while spanning is unimplemented |
 
 ## Configuration Options
 
