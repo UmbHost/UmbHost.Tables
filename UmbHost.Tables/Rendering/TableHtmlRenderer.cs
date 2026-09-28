@@ -64,6 +64,8 @@ internal static class TableHtmlRenderer
         var rows = table.Rows;
         var hasHeadRow = table.UseFirstRowAsHeader && rows.Count > 0;
 
+        AppendColumnWidths(content, table);
+
         if (hasHeadRow)
         {
             AppendGroup(content, "thead", options.HeadClass, RenderRowRange(table, rows.Take(1), 0, options));
@@ -74,6 +76,41 @@ internal static class TableHtmlRenderer
 
         return content;
     }
+
+    private static void AppendColumnWidths(HtmlContentBuilder content, TableModel table)
+    {
+        var columnCount = table.ColumnCount;
+
+        if (columnCount == 0 || !table.ColumnWidths.Take(columnCount).Any(HasUsableWidth))
+        {
+            return;
+        }
+
+        var group = new TagBuilder("colgroup");
+
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+        {
+            var column = new TagBuilder("col");
+            TableColumnWidth? width = columnIndex < table.ColumnWidths.Count
+                ? table.ColumnWidths[columnIndex]
+                : null;
+
+            if (HasUsableWidth(width))
+            {
+                column.Attributes["style"] = $"width: {width!.Value.ToString(CultureInfo.InvariantCulture)}{GetWidthUnit(width.Unit)};";
+            }
+
+            group.InnerHtml.AppendHtml(column);
+        }
+
+        content.AppendHtml(group);
+    }
+
+    private static bool HasUsableWidth(TableColumnWidth? width)
+        => width is not null && width.Value >= 0;
+
+    private static string GetWidthUnit(TableDimensionType unit)
+        => unit == TableDimensionType.Percent ? "%" : "px";
 
     private static List<TagBuilder> RenderRowRange(
         TableModel table,

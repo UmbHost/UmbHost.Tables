@@ -17,6 +17,34 @@ public class TableHtmlRendererTests
     }
 
     [Fact]
+    public void Column_widths_render_as_a_colgroup_before_the_rows()
+    {
+        var table = TestTable.Create([["a", "b", "c"]]);
+        table.ColumnWidths =
+        [
+            new TableColumnWidth { Value = 120, Unit = TableDimensionType.Px },
+            null,
+            new TableColumnWidth { Value = 33.33m, Unit = TableDimensionType.Percent },
+        ];
+
+        var html = RenderRows(table);
+
+        Assert.Contains("<colgroup>", html);
+        Assert.Contains("style=\"width: 120px;\"", html);
+        Assert.Contains("style=\"width: 33.33%;\"", html);
+        Assert.True(html.IndexOf("<colgroup>", StringComparison.Ordinal) < html.IndexOf("<tbody>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Negative_column_widths_are_not_rendered()
+    {
+        var table = TestTable.Create([["a"]]);
+        table.ColumnWidths = [new TableColumnWidth { Value = -1, Unit = TableDimensionType.Px }];
+
+        Assert.Equal("<tbody><tr><td>a</td></tr></tbody>", RenderRows(table));
+    }
+
+    [Fact]
     public void First_row_header_splits_thead_and_tbody()
     {
         var table = TestTable.Create([["h1", "h2"], ["a", "b"]], firstRowHeader: true);

@@ -97,6 +97,15 @@ public class TablePropertyValueConverter : PropertyValueConverterBase
         {
             UseFirstRowAsHeader = table.UseFirstRowAsHeader,
             UseFirstColumnAsHeader = table.UseFirstColumnAsHeader,
+            ColumnWidths = table.ColumnWidths
+                .Select(width => width is null
+                    ? null
+                    : new TableColumnWidth
+                    {
+                        Value = width.Value,
+                        Unit = width.Unit,
+                    })
+                .ToList(),
             Rows = table.Rows
                 .Select(row => new TableRow
                 {

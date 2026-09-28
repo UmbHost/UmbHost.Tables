@@ -9,10 +9,18 @@ export interface TableRow {
   cells: TableCell[];
 }
 
+export type TableDimensionType = 'Px' | 'Percent';
+
+export interface TableColumnWidth {
+  value: number;
+  unit: TableDimensionType;
+}
+
 export interface TableData {
   rows: TableRow[];
   useFirstRowAsHeader: boolean;
   useFirstColumnAsHeader: boolean;
+  columnWidths?: Array<TableColumnWidth | null>;
 }
 
 export function createEmptyCell(isHeader: boolean = false): TableCell {
@@ -37,6 +45,7 @@ export function createEmptyTable(
   useFirstColumnAsHeader: boolean = false
 ): TableData {
   const rows: TableRow[] = [];
+  const columnWidths: Array<TableColumnWidth | null> = Array.from({ length: columnCount }, () => null);
   
   for (let i = 0; i < rowCount; i++) {
     const isHeaderRow = useFirstRowAsHeader && i === 0;
@@ -53,6 +62,7 @@ export function createEmptyTable(
   return {
     rows,
     useFirstRowAsHeader,
-    useFirstColumnAsHeader
+    useFirstColumnAsHeader,
+    columnWidths
   };
 }

@@ -44,6 +44,19 @@ public class UmbHostTableTagHelperTests
     }
 
     [Fact]
+    public void Renders_column_widths_in_a_colgroup()
+    {
+        var table = TestTable.Create([["a"]]);
+        table.ColumnWidths = [new TableColumnWidth { Value = 240, Unit = TableDimensionType.Px }];
+        var helper = new UmbHostTableTagHelper { Table = table };
+
+        var html = Run(helper, CreateOutput());
+
+        Assert.Contains("<colgroup>", html);
+        Assert.Contains("<col style=\"width: 240px;\"", html);
+    }
+
+    [Fact]
     public void Passes_through_class_id_and_data_attributes()
     {
         var helper = new UmbHostTableTagHelper { Table = TestTable.Create([["a"]]) };

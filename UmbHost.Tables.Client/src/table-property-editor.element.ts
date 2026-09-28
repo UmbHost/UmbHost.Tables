@@ -8,6 +8,10 @@ import {
   createEmptyCell,
   createEmptyRow
 } from './types.js';
+import type {
+  TableColumnWidth,
+  TableDimensionType
+} from './types.js';
 
 function getConfigValue<T>(config: UmbPropertyEditorConfigCollection | undefined, alias: string, defaultValue: T): T {
   if (!config) return defaultValue;
@@ -52,6 +56,104 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
   private _getShowFirstRowHeader() { return getConfigValue(this.config, 'showUseFirstRowAsHeader', true); }
   private _getShowFirstColHeader() { return getConfigValue(this.config, 'showUseFirstColumnAsHeader', true); }
   private _getEnableRichText() { return getConfigValue(this.config, 'enableRichText', true); }
+
+  private _getColumnWidths(): Array<TableColumnWidth | null> {
+    if (!this._tableData) return [];
+    const colCount = this._tableData.rows[0]?.cells.length ?? 0;
+    const source = this._tableData.columnWidths ?? [];
+    return Array.from({ length: colCount }, (_, index) => source[index] ?? null);
+  }
+
+  private _formatColumnWidth(width: TableColumnWidth | null): string {
+    if (!width) return '';
+    return `${width.value}${width.unit === 'Percent' ? '%' : 'px'}`;
+  }
+
+  private _renderColumnWidthStyle(width: TableColumnWidth | null) {
+    const formattedWidth = this._formatColumnWidth(width);
+    return formattedWidth ? `width: ${formattedWidth};` : undefined;
+  }
+
+  private _setColumnWidth(index: number, width: TableColumnWidth | null) {
+    if (!this._tableData || this.readonly) return;
+    const columnWidths = this._getColumnWidths();
+    if (index < 0 || index >= columnWidths.length) return;
+    columnWidths[index] = width;
+    this._tableData = { ...this._tableData, columnWidths };
+    this._updateValue();
+  }
+
+  private _updateColumnWidthValue(index: number, rawValue: string) {
+    if (!this._tableData || this.readonly) return;
+    const columnWidths = this._getColumnWidths();
+    if (index < 0 || index >= columnWidths.length) return;
+
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      columnWidths[index] = null;
+      this._tableData = { ...this._tableData, columnWidths };
+      this._updateValue();
+      return;
+    }
+
+    const value = Number(trimmed);
+    if (Number.isNaN(value)) return;
+
+    columnWidths[index] = {
+      value,
+      unit: columnWidths[index]?.unit ?? 'Px'
+    };
+    this._tableData = { ...this._tableData, columnWidths };
+    this._updateValue();
+  }
+
+  private _updateColumnWidthUnit(index: number, unit: TableDimensionType) {
+    if (!this._tableData || this.readonly) return;
+    const columnWidths = this._getColumnWidths();
+    if (index < 0 || index >= columnWidths.length) return;
+    const current = columnWidths[index];
+    if (!current) return;
+
+    columnWidths[index] = { ...current, unit };
+    this._tableData = { ...this._tableData, columnWidths };
+    this._updateValue();
+  }
+
+  private _handleColumnWidthKeydown(e: KeyboardEvent) {
+    if (this.readonly) return;
+
+    const allowedNavigationKeys = new Set([
+      'Backspace',
+      'Delete',
+      'Tab',
+      'Escape',
+      'Enter',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Home',
+      'End'
+    ]);
+
+    if (allowedNavigationKeys.has(e.key) || e.ctrlKey || e.metaKey) {
+      return;
+    }
+
+    if (/^[0-9]$/.test(e.key)) {
+      return;
+    }
+
+    if (e.key === '.') {
+      const input = e.currentTarget as HTMLInputElement | null;
+      if (input?.value.includes('.')) {
+        e.preventDefault();
+      }
+      return;
+    }
+
+    e.preventDefault();
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -150,7 +252,9 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       newCells.splice(index, 0, createEmptyCell(false));
       return { ...row, cells: newCells };
     });
-    this._tableData = { ...this._tableData, rows: newRows };
+    const columnWidths = this._getColumnWidths();
+    columnWidths.splice(index, 0, null);
+    this._tableData = { ...this._tableData, rows: newRows, columnWidths };
     this._updateCellTypes();
     this._updateValue();
   }
@@ -174,7 +278,9 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       newCells.splice(index, 1);
       return { ...row, cells: newCells };
     });
-    this._tableData = { ...this._tableData, rows: newRows };
+    const columnWidths = this._getColumnWidths();
+    columnWidths.splice(index, 1);
+    this._tableData = { ...this._tableData, rows: newRows, columnWidths };
     this._clampActiveCell();
     this._updateCellTypes();
     this._updateValue();
@@ -322,7 +428,10 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
       newCells.splice(to, 0, moved);
       return { ...row, cells: newCells };
     });
-    this._tableData = { ...this._tableData, rows: newRows };
+    const columnWidths = this._getColumnWidths();
+    const [movedWidth] = columnWidths.splice(from, 1);
+    columnWidths.splice(to, 0, movedWidth ?? null);
+    this._tableData = { ...this._tableData, rows: newRows, columnWidths };
     this._updateCellTypes();
     this._updateValue();
   }
@@ -494,6 +603,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
   private _renderContextMenu() {
     if (!this._contextMenu) return nothing;
+    const columnWidth = this._getColumnWidths()[this._contextMenu.col] ?? null;
     return html`
       <div class="context-menu"
            style="top:${this._contextMenu.y}px;left:${this._contextMenu.x}px"
@@ -503,6 +613,40 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
         <div class="menu-divider"></div>
         <div class="menu-item" @click=${() => this._handleMenuAction('insert-col-before')}>Insert Column Before</div>
         <div class="menu-item" @click=${() => this._handleMenuAction('insert-col-after')}>Insert Column After</div>
+        <div class="menu-divider"></div>
+        <div class="context-menu-section" @pointerdown=${(e: PointerEvent) => e.stopPropagation()} @click=${(e: Event) => e.stopPropagation()}>
+          <div class="context-menu-section-title">Column ${this._contextMenu.col + 1} width</div>
+          <div class="context-menu-column-width-controls">
+            <input
+              class="context-menu-column-width-input"
+              type="number"
+              min="0"
+              step="0.1"
+              inputmode="decimal"
+              placeholder="Auto"
+              .value=${columnWidth ? String(columnWidth.value) : ''}
+              ?disabled=${this.readonly}
+              @keydown=${this._handleColumnWidthKeydown}
+              @change=${(e: Event) => this._updateColumnWidthValue(this._contextMenu!.col, (e.target as HTMLInputElement).value)}>
+            <select
+              class="context-menu-column-width-unit"
+              .value=${columnWidth?.unit ?? 'Px'}
+              ?disabled=${this.readonly || !columnWidth}
+              @change=${(e: Event) => this._updateColumnWidthUnit(this._contextMenu!.col, (e.target as HTMLSelectElement).value as TableDimensionType)}>
+              <option value="Px">px</option>
+              <option value="Percent">%</option>
+            </select>
+            <button
+              type="button"
+              class="context-menu-column-width-clear"
+              aria-label="Clear column width"
+              title="Clear column width"
+              ?disabled=${this.readonly || !columnWidth}
+              @click=${() => this._setColumnWidth(this._contextMenu!.col, null)}>
+              <uui-icon name="delete" aria-hidden="true"></uui-icon>
+            </button>
+          </div>
+        </div>
         <div class="menu-divider"></div>
         <div class="menu-item danger" @click=${() => this._handleMenuAction('delete-row')}>Delete Row</div>
         <div class="menu-item danger" @click=${() => this._handleMenuAction('delete-col')}>Delete Column</div>
@@ -515,6 +659,7 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
     const colCount = this._tableData.rows[0]?.cells.length ?? 0;
     const colIndices = Array.from({ length: colCount }, (_, i) => i);
+    const columnWidths = this._getColumnWidths();
     const useRte = this._getEnableRichText();
 
     return html`
@@ -544,6 +689,13 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
         <div class="table-container">
           <table role="grid" aria-label="Table editor">
+            <colgroup>
+              <col class="handle-column" style="width: 30px;">
+              ${columnWidths.map(width => html`
+                <col style=${ifDefined(this._renderColumnWidthStyle(width))}>
+              `)}
+            </colgroup>
+
             <tr class="col-handle-row" aria-hidden="true">
               <td class="corner-cell"></td>
               ${colIndices.map(ci => html`
@@ -593,9 +745,10 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
 
                   const cellContent = useRte ? (rteEditing ? html`
                     <div class="cell-rte-wrapper">
-                      ${!this._rteReady ? html`
-                        <div class="cell-content" .innerHTML=${cell.value || ''}></div>
-                      ` : nothing}
+                      <div
+                        class=${`cell-content rte-spacer ${this._rteReady ? 'is-hidden' : ''}`}
+                        aria-hidden=${this._rteReady ? 'true' : 'false'}
+                        .innerHTML=${cell.value || ''}></div>
                       <umbhost-table-cell-tiptap-editor
                         class=${!this._rteReady ? 'rte-loading' : ''}
                         .value=${cell.value ?? ''}
@@ -676,6 +829,86 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     }
     .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 12px; }
 
+    .column-width-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      background: linear-gradient(180deg, var(--uui-color-surface-alt, #f3f3f5), var(--uui-color-surface, #fff));
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      border-radius: var(--uui-border-radius, 3px);
+    }
+    .column-width-panel-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .column-width-panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--uui-color-text, #1f1f21);
+    }
+    .column-width-panel-note {
+      font-size: 12px;
+      color: var(--uui-color-text-alt, #666);
+      margin-top: 4px;
+    }
+    .column-width-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .column-width-item {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--uui-color-surface, #fff);
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      border-radius: 4px;
+    }
+    .column-width-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--uui-color-text-alt, #666);
+    }
+    .column-width-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+      width: 100%;
+    }
+    .column-width-input {
+      width: 68px;
+      flex: 0 0 auto;
+    }
+    .column-width-unit {
+      width: fit-content;
+      min-width: 56px;
+      flex: 0 0 auto;
+    }
+    .column-width-clear {
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      background: var(--uui-color-surface-alt, #f3f3f5);
+      color: var(--uui-color-text, #1f1f21);
+      border-radius: 4px;
+      padding: 6px;
+      cursor: pointer;
+      font: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+    }
+    .column-width-clear:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
     .table-container { overflow-x: auto; overflow-y: hidden; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 
@@ -724,9 +957,25 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     }
     .cell-textarea:focus { background: var(--uui-color-surface-emphasis, #f9f9fb); }
 
-    .cell-rte-wrapper { position: relative; min-height: 69px; height: 100%; }
+    .cell-rte-wrapper {
+      display: grid;
+      grid-template-areas: 'stack';
+      min-height: 69px;
+      height: auto;
+    }
+    .cell-rte-wrapper > * {
+      grid-area: stack;
+      min-width: 0;
+      min-height: 0;
+    }
+    .cell-content.rte-spacer.is-hidden { visibility: hidden; pointer-events: none; }
 
-    umbhost-table-cell-tiptap-editor { display: block; height: 100%; }
+    umbhost-table-cell-tiptap-editor {
+      display: block;
+      width: 100%;
+      height: auto;
+      z-index: 1;
+    }
 
     umbhost-table-cell-tiptap-editor.rte-loading {
       visibility: hidden;
@@ -801,6 +1050,51 @@ export default class UmbHostTablePropertyEditor extends UmbElementMixin(LitEleme
     .menu-item.danger { color: var(--uui-color-danger, #d42054); }
     .menu-item.danger:hover { background: var(--uui-color-danger, #d42054); color: #fff; }
     .menu-divider { height: 1px; background: var(--uui-color-border, #e9e9eb); margin: 4px 0; }
+    .context-menu-section {
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .context-menu-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--uui-color-text-alt, #666);
+    }
+    .context-menu-column-width-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+    }
+    .context-menu-column-width-input {
+      width: 62px;
+      flex: 0 0 auto;
+    }
+    .context-menu-column-width-unit {
+      width: fit-content;
+      min-width: 52px;
+      flex: 0 0 auto;
+    }
+    .context-menu-column-width-clear {
+      border: 1px solid var(--uui-color-border, #d8d7d9);
+      background: var(--uui-color-surface-alt, #f3f3f5);
+      color: var(--uui-color-text, #1f1f21);
+      border-radius: 4px;
+      padding: 6px;
+      cursor: pointer;
+      font: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+    }
+    .context-menu-column-width-clear:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
   `;
 }
 

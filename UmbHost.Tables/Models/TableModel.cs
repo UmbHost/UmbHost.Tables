@@ -26,6 +26,12 @@ public class TableModel
     public bool UseFirstColumnAsHeader { get; set; }
 
     /// <summary>
+    /// Gets or sets the widths for each column in the table.
+    /// </summary>
+    [JsonPropertyName("columnWidths")]
+    public IReadOnlyList<TableColumnWidth?> ColumnWidths { get; set; } = new List<TableColumnWidth?>();
+
+    /// <summary>
     /// Gets the number of rows in the table.
     /// </summary>
     [JsonIgnore]

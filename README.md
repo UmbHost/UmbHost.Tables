@@ -7,6 +7,7 @@ A table property editor for Umbraco 17 and 18 that allows content editors to cre
 - Inline cell editing with contenteditable
 - Header row and header column toggles
 - Add and remove rows and columns
+- Per-column widths in pixels or percentages
 - Right-click context menu for quick operations
 - Strongly-typed C# models with PropertyValueConverter
 - Configurable min/max rows and columns
@@ -72,6 +73,27 @@ dotnet add package UmbHost.Tables --version 17.*
 @if (table != null && table.Rows.Any())
 {
     <table class="table">
+        @if (table.ColumnWidths.Take(table.ColumnCount).Any(width => width is { Value: >= 0 }))
+        {
+            <colgroup>
+                @for (var columnIndex = 0; columnIndex < table.ColumnCount; columnIndex++)
+                {
+                    var width = columnIndex < table.ColumnWidths.Count
+                        ? table.ColumnWidths[columnIndex]
+                        : null;
+
+                    if (width is { Value: >= 0 })
+                    {
+                        var unit = width.Unit == TableDimensionType.Percent ? "%" : "px";
+                        <col style="width: @width.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)@unit;" />
+                    }
+                    else
+                    {
+                        <col />
+                    }
+                }
+            </colgroup>
+        }
         @if (table.UseFirstRowAsHeader && table.Rows.Any())
         {
             <thead>
@@ -169,12 +191,20 @@ For full control, pass `TableHtmlOptions` instead of a class string:
 
 `ToHtmlTable` returns `IHtmlContent`, so `@Html.Raw(table.ToHtmlTable("table"))` also works.
 
+### Column Widths
+
+Set a width for a column from its context menu in the backoffice. Widths can use pixels or percentages. Both the tag helper and `ToHtmlTable` render configured widths in a `<colgroup>`; columns without a configured width remain unconstrained.
+
 ### Generated Markup
 
 Both helpers produce the same markup. Header cells are determined by `cell.Type` **or** the `UseFirstRowAsHeader` / `UseFirstColumnAsHeader` flags, and carry `scope` for screen readers:
 
 ```html
 <table class="table table-striped">
+  <colgroup>
+    <col style="width: 160px;">
+    <col style="width: 40%;">
+  </colgroup>
   <thead>
     <tr>
       <th scope="col">Plan</th>
@@ -201,6 +231,7 @@ The main model representing the table:
 | `Rows` | `IReadOnlyList<TableRow>` | Collection of table rows |
 | `UseFirstRowAsHeader` | `bool` | Whether the first row should render as `<th>` elements |
 | `UseFirstColumnAsHeader` | `bool` | Whether the first column should render as `<th>` elements |
+| `ColumnWidths` | `IReadOnlyList<TableColumnWidth?>` | Optional width for each column, rendered as a `<colgroup>` |
 | `RowCount` | `int` | Number of rows |
 | `ColumnCount` | `int` | Number of columns (from first row) |
 | `HasContent` | `bool` | Whether the table has at least one row containing a non-empty cell |
@@ -242,6 +273,15 @@ Represents a single cell:
 | `IsEmpty` | `bool` | Whether cell is empty |
 | `IsHeader` | `bool` | Whether cell is a header |
 | `IsSpanned` | `bool` | Whether the cell spans multiple rows or columns. Always `false` while spanning is unimplemented |
+
+### TableColumnWidth
+
+Represents an optional column width:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Value` | `decimal` | The width value |
+| `Unit` | `TableDimensionType` | `Px` for pixels or `Percent` for percentages |
 
 ## Configuration Options
 
